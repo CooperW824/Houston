@@ -197,14 +197,14 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
             return true;
         }
 
-        if (event == Event::ArrowUp) {
+        if (event == Event::ArrowUp || event == Event::Character('k')) {
             (*selected_index)--;
             if (*selected_index < 0) {
                 *selected_index = 0;
             }
             return true;
         }
-        if (event == Event::ArrowDown) {
+        if (event == Event::ArrowDown || event == Event::Character('j')) {
             (*selected_index)++;
             return true;
         }
