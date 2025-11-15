@@ -34,6 +34,7 @@ add_executable(houston
   src/processes_list/processes_list.cpp
   src/ui/main_view.cpp
   src/ui/processes_view.cpp
+  src/ui/processes_view_inputs.cpp
 )
 target_include_directories(houston PRIVATE src)
 
