@@ -71,11 +71,6 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
 
         std::vector<Element> rows;
 
-        std::stringstream refresh_info;
-        refresh_info << "Refresh rate: " << std::fixed << std::setprecision(1) << refresh_rate_seconds << "s";
-        rows.push_back(text(refresh_info.str()) | color(Color::GreenLight));
-        rows.push_back(separator());
-
         rows.push_back(hbox({
             text("Kill") | size(WIDTH, EQUAL, COL_KILL_WIDTH),
             separator(),
