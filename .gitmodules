@@ -1,3 +1,0 @@
-[submodule "external/libstatgrab"]
-	path = external/libstatgrab
-	url = https://github.com/libstatgrab/libstatgrab
