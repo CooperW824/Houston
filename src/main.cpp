@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <thread>
 #include <chrono>
+#include <mutex>
 
 using namespace ftxui;
 
@@ -17,19 +18,26 @@ int main()
     int selected_function = 0;
     auto function_select = Toggle(&function_tabs, &selected_function);
 
-    int refresh_rate_seconds = 0.5;
+    double refresh_rate_seconds = 0.5;
     auto processes = get_processes_list();
+    std::mutex processes_mutex;
 
     auto processes_renderer = Renderer([&]
     {
-        std::sort(processes.begin(), processes.end(), [](const Process& a, const Process& b) {
+        std::vector<Process> processes_copy;
+        {
+            std::lock_guard<std::mutex> lock(processes_mutex);
+            processes_copy = processes;
+        }
+
+        std::sort(processes_copy.begin(), processes_copy.end(), [](const Process& a, const Process& b) {
             return a.get_memory_usage() > b.get_memory_usage();
         });
 
         std::vector<Element> rows;
 
         std::stringstream refresh_info;
-        refresh_info << "Refresh rate: " << refresh_rate_seconds << "s";
+        refresh_info << "Refresh rate: " << std::fixed << std::setprecision(1) << refresh_rate_seconds << "s";
         rows.push_back(text(refresh_info.str()) | color(Color::GreenLight));
         rows.push_back(separator());
 
@@ -47,7 +55,7 @@ int main()
 
         rows.push_back(separator());
 
-        for (const auto& proc : processes)
+        for (const auto& proc : processes_copy)
         {
             std::stringstream pid_ss, mem_ss, cpu_ss, net_ss;
             pid_ss << proc.get_pid();
@@ -94,8 +102,12 @@ int main()
 
     std::thread refresh_thread([&]() {
         while (true) {
-            std::this_thread::sleep_for(std::chrono::seconds(refresh_rate_seconds));
-            processes = get_processes_list();
+            std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(refresh_rate_seconds * 1000)));
+            auto new_processes = get_processes_list();
+            {
+                std::lock_guard<std::mutex> lock(processes_mutex);
+                processes = new_processes;
+            }
             screen.PostEvent(Event::Custom);
         }
     });
