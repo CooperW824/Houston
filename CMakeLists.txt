@@ -27,17 +27,23 @@ FetchContent_MakeAvailable(ftxui)
 # ------------------------------------------------------------------------------
 
 
-add_executable(houston src/main.cpp)
+add_executable(houston
+  src/main.cpp
+  src/processes_list/process.cpp
+  src/processes_list/processes_list.cpp
+)
 target_include_directories(houston PRIVATE src)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(STATGRAB REQUIRED libstatgrab)
+find_package(Threads REQUIRED)
 
 target_link_libraries(houston
   PRIVATE ftxui::screen
   PRIVATE ftxui::dom
   PRIVATE ftxui::component
   PRIVATE ${STATGRAB_LIBRARIES}
+  PRIVATE Threads::Threads
 )
 
 target_include_directories(houston PRIVATE ${STATGRAB_INCLUDE_DIRS})

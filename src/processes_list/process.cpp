@@ -3,14 +3,19 @@
 #include <cstring>
 #include <iostream>
 
-Process::Process(pid_t pid, unsigned long memory, double cpu, unsigned long network)
-    : pid(pid), memory_usage(memory), cpu_usage(cpu), network_usage(network)
+Process::Process(pid_t pid, const std::string& name, unsigned long memory, double cpu, unsigned long network)
+    : pid(pid), process_name(name), memory_usage(memory), cpu_usage(cpu), network_usage(network)
 {
 }
 
 pid_t Process::get_pid() const
 {
     return pid;
+}
+
+std::string Process::get_process_name() const
+{
+    return process_name;
 }
 
 unsigned long Process::get_memory_usage() const
@@ -26,6 +31,11 @@ double Process::get_cpu_usage() const
 unsigned long Process::get_network_usage() const
 {
     return network_usage;
+}
+
+void Process::set_process_name(const std::string& name)
+{
+    process_name = name;
 }
 
 void Process::set_memory_usage(unsigned long memory)

@@ -21,11 +21,12 @@ std::vector<Process> get_processes_list()
     for (size_t i = 0; i < num_processes; i++)
     {
         pid_t pid = process_stats[i].pid;
+        std::string name = process_stats[i].process_name;
         unsigned long memory = process_stats[i].proc_resident / 1024;
         double cpu = process_stats[i].cpu_percent;
         unsigned long network = 0;
 
-        Process proc(pid, memory, cpu, network);
+        Process proc(pid, name, memory, cpu, network);
         processes.push_back(proc);
     }
 
