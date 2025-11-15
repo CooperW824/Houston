@@ -57,6 +57,78 @@ bool handle_processes_view_event(
         return true;
     }
 
+    if (event == Event::Backspace) {
+        std::vector<Process> processes_copy;
+        {
+            std::lock_guard<std::mutex> lock(processes_mutex);
+            processes_copy = processes;
+        }
+
+        std::sort(processes_copy.begin(), processes_copy.end(), [](const Process& a, const Process& b) {
+            return a.get_memory_usage() > b.get_memory_usage();
+        });
+
+        if (!search_phrase->empty()) {
+            std::string search_lower = *search_phrase;
+            std::transform(search_lower.begin(), search_lower.end(), search_lower.begin(), ::tolower);
+
+            processes_copy.erase(
+                std::remove_if(processes_copy.begin(), processes_copy.end(),
+                    [&search_lower](const Process& proc) {
+                        std::string name_lower = proc.get_process_name();
+                        std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
+                        std::string pid_str = std::to_string(proc.get_pid());
+                        return name_lower.find(search_lower) == std::string::npos &&
+                               pid_str.find(search_lower) == std::string::npos;
+                    }
+                ),
+                processes_copy.end()
+            );
+        }
+
+        if (*selected_index >= 0 && *selected_index < static_cast<int>(processes_copy.size())) {
+            Process proc = processes_copy[*selected_index];
+            proc.kill(15);
+            return true;
+        }
+    }
+
+    if (event == Event::Delete) {
+        std::vector<Process> processes_copy;
+        {
+            std::lock_guard<std::mutex> lock(processes_mutex);
+            processes_copy = processes;
+        }
+
+        std::sort(processes_copy.begin(), processes_copy.end(), [](const Process& a, const Process& b) {
+            return a.get_memory_usage() > b.get_memory_usage();
+        });
+
+        if (!search_phrase->empty()) {
+            std::string search_lower = *search_phrase;
+            std::transform(search_lower.begin(), search_lower.end(), search_lower.begin(), ::tolower);
+
+            processes_copy.erase(
+                std::remove_if(processes_copy.begin(), processes_copy.end(),
+                    [&search_lower](const Process& proc) {
+                        std::string name_lower = proc.get_process_name();
+                        std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
+                        std::string pid_str = std::to_string(proc.get_pid());
+                        return name_lower.find(search_lower) == std::string::npos &&
+                               pid_str.find(search_lower) == std::string::npos;
+                    }
+                ),
+                processes_copy.end()
+            );
+        }
+
+        if (*selected_index >= 0 && *selected_index < static_cast<int>(processes_copy.size())) {
+            Process proc = processes_copy[*selected_index];
+            proc.kill(9);
+            return true;
+        }
+    }
+
     if (event == Event::ArrowUp || event == Event::Character('k')) {
         (*selected_index)--;
         if (*selected_index < 0) {

@@ -60,3 +60,53 @@ target_include_directories(houston PRIVATE ${LIBPCI_INCLUDE_DIRS})
 target_compile_options(houston PRIVATE ${LIBPCI_CFLAGS_OTHER})
 target_include_directories(houston PRIVATE ${STATGRAB_INCLUDE_DIRS})
 target_compile_options(houston PRIVATE ${STATGRAB_CFLAGS_OTHER})
+
+# --- Testing with Google Test -------------------------------------------------
+option(BUILD_TESTS "Build the tests" ON)
+
+if(BUILD_TESTS)
+  enable_testing()
+
+  # Fetch Google Test
+  FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG        v1.14.0
+    GIT_PROGRESS   TRUE
+    GIT_SHALLOW    TRUE
+    EXCLUDE_FROM_ALL
+  )
+
+  # For Windows: Prevent overriding the parent project's compiler/linker settings
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(googletest)
+
+  # Create test executable
+  add_executable(houston_tests
+    tests/test_process.cpp
+    tests/test_processes_view.cpp
+    src/processes_list/process.cpp
+    src/ui/processes_view_inputs.cpp
+  )
+
+  target_include_directories(houston_tests PRIVATE src)
+  target_include_directories(houston_tests PRIVATE ${STATGRAB_INCLUDE_DIRS})
+  target_include_directories(houston_tests PRIVATE ${LIBPCI_INCLUDE_DIRS})
+
+  target_link_libraries(houston_tests
+    PRIVATE GTest::gtest_main
+    PRIVATE ftxui::screen
+    PRIVATE ftxui::dom
+    PRIVATE ftxui::component
+    PRIVATE ${STATGRAB_LIBRARIES}
+    PRIVATE Threads::Threads
+    PRIVATE ${LIBPCI_LIBRARIES}
+  )
+
+  target_compile_options(houston_tests PRIVATE ${STATGRAB_CFLAGS_OTHER})
+  target_compile_options(houston_tests PRIVATE ${LIBPCI_CFLAGS_OTHER})
+
+  include(GoogleTest)
+  gtest_discover_tests(houston_tests)
+endif()
+# ------------------------------------------------------------------------------

@@ -2,13 +2,21 @@
 #include "process.hpp"
 #include <vector>
 #include <statgrab.h>
+#include <mutex>
+
+static std::once_flag init_flag;
+
+static void init_statgrab()
+{
+    sg_init(1);
+    sg_drop_privileges();
+}
 
 std::vector<Process> get_processes_list()
 {
     std::vector<Process> processes;
 
-    sg_init(1);
-    sg_drop_privileges();
+    std::call_once(init_flag, init_statgrab);
 
     size_t num_processes;
     sg_process_stats *process_stats = sg_get_process_stats(&num_processes);
