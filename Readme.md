@@ -9,7 +9,9 @@
 
 ## Build and setup
 
-    cmake configure .
     mkdir build
+    cd build 
+    cmake configure ..
+    cd ..
     cmake --build build
     
