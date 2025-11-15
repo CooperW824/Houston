@@ -1,27 +1,36 @@
 #include "status_view.hpp"
 
-Component create_status_view()
+Component create_status_view(const std::vector<std::string> &hardware_resources, const std::vector<Component> &tab_contents)
 {
-    auto status_monitor = std::make_shared<StatusMonitor>();
+    // 1. State Variables
+    // Stores the index of the currently selected menu item (and thus the current tab)
+    auto menu_selected = std::make_shared<int>(0);
 
-    auto menu_tabs = status_monitor->determine_hardware_resources();
+    // Stores the state of the resizable split (position of the separator)
+    auto split_state = std::make_shared<int>(50); // Initial width for the menu pane (e.g., 50 columns)
 
-    int selected_tab = 0;
+    // 2. The Menu Component
+    auto menu_component =
+        Menu(&hardware_resources, menu_selected.get(),
+             MenuOption::Vertical()); // Add a border around the menu
 
-    auto menu = Menu(&menu_tabs, &selected_tab);
+    // 3. The Tabs Component
+    // The Tab component needs a container of all the content for each tab
+    auto tab_container = Container::Tab(tab_contents, menu_selected.get());
 
-    auto tabs = std::vector<Component>{};
-    for (const auto &tab_name : menu_tabs)
-    {
-        tabs.push_back(Renderer([status_monitor, tab_name]
-                                { return text(tab_name); }));
-    }
+    // 4. The Resizable Split Component
+    // This splits the available space horizontally between the menu and the tabs.
+    auto resizable_split = ResizableSplit(
+                               ResizableSplitOption{
+                                   .main = menu_component,
+                                   .back = tab_container,
+                                   .direction = Direction::Left,
+                                   .main_size = split_state.get(),
+                                   .separator_func = []
+                                   { return ::ftxui::separator(); },
+                               }) |
+                           yflex | yflex_grow;
 
-    auto tab_content = Container::Tab(tabs, &selected_tab);
-
-    int left_size = 20;
-    Component system_monitor_layout =
-        ResizableSplitLeft(menu, tab_content, &left_size);
-
-    return system_monitor_layout;
+    // 5. Return the combined component
+    return resizable_split;
 }

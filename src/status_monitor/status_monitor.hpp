@@ -38,10 +38,10 @@ private:
 public:
     StatusMonitor(/* args */);
     ~StatusMonitor();
-    std::vector<std::string> determine_hardware_resources();
-    std::vector<std::string> get_hardware_resources()
+    void determine_hardware_resources();
+    std::vector<std::string> *get_hardware_resources()
     {
-        return this->hardware_resources;
+        return &this->hardware_resources;
     }
 };
 

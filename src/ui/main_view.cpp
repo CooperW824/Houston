@@ -15,11 +15,20 @@ void start_ui(double refresh_rate_seconds)
 
     auto processes_renderer = create_processes_view(processes, processes_mutex, refresh_rate_seconds);
 
-    auto status_renderer = create_status_view();
+    std::shared_ptr<StatusMonitor> status_monitor = std::make_shared<StatusMonitor>();
+    std::vector<std::string> *hardware_resources = status_monitor->get_hardware_resources();
+    std::vector<Component> status_tab_contents;
+
+    for (const auto &resource : *hardware_resources)
+    {
+        status_tab_contents.push_back(Renderer([resource]
+                                               { return text(resource); }));
+    }
+
+    auto status_renderer = create_status_view(*hardware_resources, status_tab_contents);
 
     auto tab_container = Container::Tab(
-        {Renderer([]
-                  { return text("Loading..."); }),
+        {status_renderer,
          processes_renderer},
         &selected_function);
 
@@ -52,7 +61,8 @@ void start_ui(double refresh_rate_seconds)
     auto screen = ScreenInteractive::Fullscreen();
 
     std::atomic<bool> should_exit(false);
-    std::thread refresh_thread([&]() {
+    std::thread refresh_thread([&]()
+                               {
         while (!should_exit) {
             std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(refresh_rate_seconds * 1000)));
             if (!should_exit) {
@@ -63,14 +73,13 @@ void start_ui(double refresh_rate_seconds)
                 }
                 screen.PostEvent(Event::Custom);
             }
-        }
-    });
+        } });
 
     screen.Loop(main_view);
 
     should_exit = true;
-    if (refresh_thread.joinable()) {
+    if (refresh_thread.joinable())
+    {
         refresh_thread.join();
     }
 }
-

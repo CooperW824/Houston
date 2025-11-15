@@ -15,11 +15,7 @@ A modern terminal-based process monitor built with C++ and FTXUI.
 
 ### Installing libstatgrab
 
-    cd external/libstatgrab
-    ./autogen.sh
-    ./configure --prefix=$HOME/.local
-    make
-    make install
+    sudo apt install libstatgrab-dev
 
 ### Build and setup
 

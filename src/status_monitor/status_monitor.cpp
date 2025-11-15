@@ -118,6 +118,8 @@ StatusMonitor::StatusMonitor()
 {
     this->network_adapters = std::vector<ifaddrs *>{};
     this->pci_database_loaded = false;
+    this->hardware_resources = std::vector<std::string>{};
+    this->determine_hardware_resources();
 }
 
 StatusMonitor::~StatusMonitor()
@@ -280,18 +282,17 @@ bool StatusMonitor::is_physical_drive(const std::string &device_name)
     return true;
 }
 
-std::vector<std::string> StatusMonitor::determine_hardware_resources()
+void StatusMonitor::determine_hardware_resources()
 {
     this->hardware_resources.push_back("CPU: " + get_cpu_model());
 
     struct sysinfo memory_info;
 
-    if (sysinfo(&memory_info))
+    if (!sysinfo(&memory_info))
     {
-        _exit(255);
+        this->hardware_resources.push_back("RAM: " + std::to_string((memory_info.totalram - memory_info.freeram) / (1000 * 1000)) + " / " + std::to_string(memory_info.totalram / (1000 * 1000)) + " MB");
     }
 
-    this->hardware_resources.push_back("RAM: " + std::to_string((memory_info.totalram - memory_info.freeram) / (1000 * 1000)) + " / " + std::to_string(memory_info.totalram / (1000 * 1000)) + " MB");
     this->hardware_resources.push_back("GPU: " + get_gpu_model());
 
     // Free previous network adapters
@@ -327,6 +328,4 @@ std::vector<std::string> StatusMonitor::determine_hardware_resources()
         this->hardware_resources.push_back("Drive " + std::to_string(storage_device_number) + ": " + dev);
         storage_device_number++;
     }
-
-    return this->hardware_resources;
 }
