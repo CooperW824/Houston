@@ -7,8 +7,10 @@
 Component create_processes_view(std::vector<Process>& processes, std::mutex& processes_mutex, double& refresh_rate_seconds)
 {
     auto selected_index = std::make_shared<int>(0);
+    auto search_mode = std::make_shared<bool>(false);
+    auto search_phrase = std::make_shared<std::string>("");
 
-    auto base_component = Renderer([&, selected_index]
+    auto base_component = Renderer([&, selected_index, search_mode, search_phrase]
     {
         std::vector<Process> processes_copy;
         {
@@ -19,6 +21,26 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
         std::sort(processes_copy.begin(), processes_copy.end(), [](const Process& a, const Process& b) {
             return a.get_memory_usage() > b.get_memory_usage();
         });
+
+        if (!search_phrase->empty()) {
+            std::string search_lower = *search_phrase;
+            std::transform(search_lower.begin(), search_lower.end(), search_lower.begin(), ::tolower);
+
+            processes_copy.erase(
+                std::remove_if(processes_copy.begin(), processes_copy.end(),
+                    [&search_lower](const Process& proc) {
+                        std::string name_lower = proc.get_process_name();
+                        std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
+
+                        std::string pid_str = std::to_string(proc.get_pid());
+
+                        return name_lower.find(search_lower) == std::string::npos &&
+                               pid_str.find(search_lower) == std::string::npos;
+                    }
+                ),
+                processes_copy.end()
+            );
+        }
 
         if (*selected_index >= static_cast<int>(processes_copy.size())) {
             *selected_index = std::max(0, static_cast<int>(processes_copy.size()) - 1);
@@ -76,10 +98,64 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
             rows.push_back(row);
         }
 
-        return vbox(rows) | vscroll_indicator | yframe | flex;
+        auto process_list = vbox(rows) | vscroll_indicator | yframe | flex;
+
+        if (*search_mode || !search_phrase->empty()) {
+            std::string search_display = "/" + *search_phrase;
+            if (*search_mode) {
+                search_display += "_";
+            }
+            auto search_bar = text(search_display) | color(Color::Yellow) | bold;
+            return vbox({
+                process_list,
+                separator(),
+                search_bar,
+            });
+        }
+
+        return process_list;
     });
 
-    return CatchEvent(base_component, [selected_index](Event event) {
+    return CatchEvent(base_component, [selected_index, search_mode, search_phrase](Event event) {
+        if (*search_mode) {
+            if (event == Event::Escape) {
+                *search_mode = false;
+                *search_phrase = "";
+                *selected_index = 0;
+                return true;
+            }
+            if (event == Event::Backspace) {
+                if (!search_phrase->empty()) {
+                    search_phrase->pop_back();
+                    *selected_index = 0;
+                }
+                return true;
+            }
+            if (event == Event::Return) {
+                *search_mode = false;
+                return true;
+            }
+            if (event.is_character()) {
+                *search_phrase += event.character();
+                *selected_index = 0;
+                return true;
+            }
+            return true;
+        }
+
+        if (event == Event::Character('/')) {
+            *search_mode = true;
+            *search_phrase = "";
+            *selected_index = 0;
+            return true;
+        }
+
+        if (event == Event::Escape && !search_phrase->empty()) {
+            *search_phrase = "";
+            *selected_index = 0;
+            return true;
+        }
+
         if (event == Event::ArrowUp) {
             (*selected_index)--;
             if (*selected_index < 0) {

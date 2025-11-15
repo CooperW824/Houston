@@ -27,7 +27,10 @@ void start_ui(double refresh_rate_seconds)
     auto main_container = CatchEvent(main_container_base, [&](Event event) {
         if (selected_function == 1) {
             if (event == Event::ArrowUp || event == Event::ArrowDown ||
-                event == Event::PageUp || event == Event::PageDown) {
+                event == Event::PageUp || event == Event::PageDown ||
+                event == Event::Character('/') || event == Event::Escape ||
+                event == Event::Backspace || event == Event::Return ||
+                event.is_character()) {
                 return processes_renderer->OnEvent(event);
             }
         }
