@@ -30,8 +30,26 @@ FetchContent_MakeAvailable(ftxui)
 add_executable(houston src/main.cpp)
 target_include_directories(houston PRIVATE src)
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(STATGRAB REQUIRED libstatgrab)
+
 target_link_libraries(houston
   PRIVATE ftxui::screen
   PRIVATE ftxui::dom
-  PRIVATE ftxui::component 
+  PRIVATE ftxui::component
+  PRIVATE ${STATGRAB_LIBRARIES}
 )
+
+target_include_directories(houston PRIVATE ${STATGRAB_INCLUDE_DIRS})
+target_compile_options(houston PRIVATE ${STATGRAB_CFLAGS_OTHER})
+
+
+if (EMSCRIPTEN)
+  string(APPEND CMAKE_CXX_FLAGS " -s USE_PTHREADS")
+  string(APPEND CMAKE_EXE_LINKER_FLAGS " -s ASYNCIFY")
+  string(APPEND CMAKE_EXE_LINKER_FLAGS " -s PROXY_TO_PTHREAD")
+
+  foreach(file "index.html" "run_webassembly.py")
+    configure_file("src/${file}" ${file})
+  endforeach(file)
+endif()
