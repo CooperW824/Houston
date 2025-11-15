@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <memory>
 #include <vector>
+#include <chrono>
 #include "../src/processes_list/process.hpp"
 #include "../src/ui/processes_view_inputs.hpp"
 #include "ftxui/component/event.hpp"
@@ -22,6 +23,11 @@ protected:
     std::shared_ptr<std::vector<Box>> sigkill_boxes;
     std::vector<Process> processes;
     std::mutex processes_mutex;
+    std::shared_ptr<bool> show_detail_view;
+    std::shared_ptr<pid_t> detail_process_pid;
+    std::shared_ptr<std::chrono::steady_clock::time_point> last_click_time;
+    std::shared_ptr<int> last_clicked_index;
+    std::shared_ptr<std::vector<pid_t>> displayed_pids;
 
     void SetUp() override {
         selected_index = std::make_shared<int>(0);
@@ -33,6 +39,11 @@ protected:
         boxes = std::make_shared<std::vector<Box>>();
         sigterm_boxes = std::make_shared<std::vector<Box>>();
         sigkill_boxes = std::make_shared<std::vector<Box>>();
+        show_detail_view = std::make_shared<bool>(false);
+        detail_process_pid = std::make_shared<pid_t>(0);
+        last_click_time = std::make_shared<std::chrono::steady_clock::time_point>(std::chrono::steady_clock::now());
+        last_clicked_index = std::make_shared<int>(-1);
+        displayed_pids = std::make_shared<std::vector<pid_t>>();
 
         // Create sample processes for testing
         processes.push_back(Process(1000, "chrome", 5000, 10.5, 1024));
@@ -53,7 +64,8 @@ TEST_F(ProcessesViewTest, ArrowUpDecreasesSelectedIndex) {
     bool handled = handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_TRUE(handled);
@@ -67,7 +79,8 @@ TEST_F(ProcessesViewTest, ArrowDownIncreasesSelectedIndex) {
     bool handled = handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_TRUE(handled);
@@ -81,7 +94,8 @@ TEST_F(ProcessesViewTest, ArrowUpAtZeroStaysAtZero) {
     handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_EQ(*selected_index, 0);
@@ -94,7 +108,8 @@ TEST_F(ProcessesViewTest, VimStyleNavigationK) {
     bool handled = handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_TRUE(handled);
@@ -108,7 +123,8 @@ TEST_F(ProcessesViewTest, VimStyleNavigationJ) {
     bool handled = handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_TRUE(handled);
@@ -122,7 +138,8 @@ TEST_F(ProcessesViewTest, PageUpDecreasesBy10) {
     handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_EQ(*selected_index, 5);
@@ -135,7 +152,8 @@ TEST_F(ProcessesViewTest, PageDownIncreasesBy10) {
     handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_EQ(*selected_index, 15);
@@ -148,7 +166,8 @@ TEST_F(ProcessesViewTest, PageUpAtLowIndexStaysAtZero) {
     handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_EQ(*selected_index, 0);
@@ -165,7 +184,8 @@ TEST_F(ProcessesViewTest, SlashEntersSearchMode) {
     bool handled = handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_TRUE(handled);
@@ -181,7 +201,8 @@ TEST_F(ProcessesViewTest, SearchModeAcceptsCharacters) {
     handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_EQ(*search_phrase, "c");
@@ -196,7 +217,8 @@ TEST_F(ProcessesViewTest, SearchModeAcceptsMultipleCharacters) {
         handle_processes_view_event(
             event, selected_index, hover_index, hover_sigterm, hover_sigkill,
             search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-            processes, processes_mutex
+            processes, processes_mutex,
+            show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
         );
     }
 
@@ -211,7 +233,8 @@ TEST_F(ProcessesViewTest, SearchModeBackspaceRemovesCharacter) {
     handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_EQ(*search_phrase, "chrom");
@@ -225,7 +248,8 @@ TEST_F(ProcessesViewTest, SearchModeBackspaceOnEmptyString) {
     handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_EQ(*search_phrase, "");
@@ -239,7 +263,8 @@ TEST_F(ProcessesViewTest, SearchModeReturnExitsSearch) {
     bool handled = handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_TRUE(handled);
@@ -255,7 +280,8 @@ TEST_F(ProcessesViewTest, SearchModeEscapeExitsAndClearsSearch) {
     bool handled = handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_TRUE(handled);
@@ -272,7 +298,8 @@ TEST_F(ProcessesViewTest, EscapeOutsideSearchClearsSearchPhrase) {
     bool handled = handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_TRUE(handled);
@@ -288,7 +315,8 @@ TEST_F(ProcessesViewTest, SearchModeResetsSelectedIndex) {
     handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_EQ(*selected_index, 0);
@@ -311,7 +339,8 @@ TEST_F(ProcessesViewTest, MouseWheelUpDecreasesIndex) {
     bool handled = handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_TRUE(handled);
@@ -331,7 +360,8 @@ TEST_F(ProcessesViewTest, MouseWheelDownIncreasesIndex) {
     bool handled = handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_TRUE(handled);
@@ -351,7 +381,8 @@ TEST_F(ProcessesViewTest, MouseWheelUpAtZeroStaysAtZero) {
     handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_EQ(*selected_index, 0);
@@ -370,7 +401,8 @@ TEST_F(ProcessesViewTest, BackspaceKillsSelectedProcessWithSIGTERM) {
     bool handled = handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_TRUE(handled);
@@ -385,7 +417,8 @@ TEST_F(ProcessesViewTest, DeleteKillsSelectedProcessWithSIGKILL) {
     bool handled = handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_TRUE(handled);
@@ -401,7 +434,8 @@ TEST_F(ProcessesViewTest, BackspaceInSearchModeDoesNotKillProcess) {
     bool handled = handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_TRUE(handled);
@@ -418,7 +452,8 @@ TEST_F(ProcessesViewTest, NonHandledEventReturnsFalse) {
     bool handled = handle_processes_view_event (
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     EXPECT_FALSE(handled);
@@ -432,7 +467,8 @@ TEST_F(ProcessesViewTest, EmptyProcessList) {
     handle_processes_view_event(
         event, selected_index, hover_index, hover_sigterm, hover_sigkill,
         search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
-        processes, processes_mutex
+        processes, processes_mutex,
+        show_detail_view, detail_process_pid, last_click_time, last_clicked_index, displayed_pids
     );
 
     // Should still increment even with empty list

@@ -36,6 +36,9 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
     auto memory_history = std::make_shared<std::vector<float>>();
     auto network_history = std::make_shared<std::vector<float>>();
     auto last_sample_time = std::make_shared<std::chrono::steady_clock::time_point>(std::chrono::steady_clock::now());
+    auto last_click_time = std::make_shared<std::chrono::steady_clock::time_point>(std::chrono::steady_clock::now());
+    auto last_clicked_index = std::make_shared<int>(-1);
+    auto displayed_pids = std::make_shared<std::vector<pid_t>>();  // Maps visual index to PID
     const int HISTORY_SIZE = 60;
     auto boxes = std::make_shared<std::vector<Box>>();
     auto sigterm_boxes = std::make_shared<std::vector<Box>>();
@@ -50,7 +53,7 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
 
     auto base_component = Renderer([&, selected_index, hover_index, hover_sigterm, hover_sigkill, search_mode, search_phrase, sort_column, sort_ascending,
                                      boxes, sigterm_boxes, sigkill_boxes, header_pid_box, header_name_box, header_memory_box, header_cpu_box, header_network_box, header_time_box, header_command_box,
-                                     show_detail_view, detail_process_pid, cpu_history, memory_history, network_history, last_sample_time, HISTORY_SIZE,
+                                     show_detail_view, detail_process_pid, cpu_history, memory_history, network_history, last_sample_time, displayed_pids, HISTORY_SIZE,
                                      COL_SIGTERM_WIDTH, COL_SIGKILL_WIDTH, COL_KILL_WIDTH, COL_PID_WIDTH, COL_NAME_WIDTH, COL_MEMORY_WIDTH, COL_CPU_WIDTH, COL_NETWORK_WIDTH, COL_TIME_WIDTH]
     {
         if (*show_detail_view) {
@@ -193,9 +196,11 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
         boxes->resize(processes_copy.size());
         sigterm_boxes->resize(processes_copy.size());
         sigkill_boxes->resize(processes_copy.size());
+        displayed_pids->resize(processes_copy.size());
         for (size_t i = 0; i < processes_copy.size(); i++)
         {
             const auto& proc = processes_copy[i];
+            (*displayed_pids)[i] = proc.get_pid();
             std::stringstream pid_ss, mem_ss, cpu_ss, net_ss, time_ss;
             pid_ss << proc.get_pid();
             mem_ss << proc.get_memory_usage();
@@ -270,7 +275,7 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
 
     return CatchEvent(base_component, [&, selected_index, hover_index, hover_sigterm, hover_sigkill, search_mode, search_phrase, sort_column, sort_ascending,
                                         boxes, sigterm_boxes, sigkill_boxes, header_pid_box, header_name_box, header_memory_box, header_cpu_box, header_network_box, header_time_box, header_command_box,
-                                        show_detail_view, detail_process_pid, cpu_history, memory_history, network_history, last_sample_time](Event event) {
+                                        show_detail_view, detail_process_pid, cpu_history, memory_history, network_history, last_sample_time, last_click_time, last_clicked_index, displayed_pids](Event event) {
         if (*show_detail_view) {
             if (event == Event::Escape) {
                 *show_detail_view = false;
@@ -462,7 +467,12 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
             sigterm_boxes,
             sigkill_boxes,
             processes,
-            processes_mutex
+            processes_mutex,
+            show_detail_view,
+            detail_process_pid,
+            last_click_time,
+            last_clicked_index,
+            displayed_pids
         );
     });
 }

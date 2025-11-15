@@ -13,7 +13,12 @@ bool handle_processes_view_event(
     std::shared_ptr<std::vector<Box>> sigterm_boxes,
     std::shared_ptr<std::vector<Box>> sigkill_boxes,
     std::vector<Process>& processes,
-    std::mutex& processes_mutex
+    std::mutex& processes_mutex,
+    std::shared_ptr<bool> show_detail_view,
+    std::shared_ptr<pid_t> detail_process_pid,
+    std::shared_ptr<std::chrono::steady_clock::time_point> last_click_time,
+    std::shared_ptr<int> last_clicked_index,
+    std::shared_ptr<std::vector<pid_t>> displayed_pids
 )
 {
     if (*search_mode) {
@@ -215,7 +220,21 @@ bool handle_processes_view_event(
                 *hover_index = i;
 
                 if (mouse.button == Mouse::Left && mouse.motion == Mouse::Released) {
+                    auto now = std::chrono::steady_clock::now();
+                    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - *last_click_time).count();
+
+                    // Check for double-click: same index, within 300ms
+                    if (*last_clicked_index == i && elapsed < 300) {
+                        // Double-click detected - open detail view
+                        if (i < static_cast<int>(displayed_pids->size())) {
+                            *detail_process_pid = (*displayed_pids)[i];
+                            *show_detail_view = true;
+                        }
+                    }
+
                     *selected_index = i;
+                    *last_clicked_index = i;
+                    *last_click_time = now;
                     return true;
                 }
                 break;
