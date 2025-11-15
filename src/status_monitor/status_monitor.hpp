@@ -23,6 +23,8 @@ private:
     PciIdDatabase pci_id_database;
     bool pci_database_loaded = false;
 
+    std::string pci_file_location = "./src/assets/pci.ids";
+
     void load_pci_id_database(std::string pci_id_filepath);
 
     std::string lookup_pci_names(const std::string &vendor_id, const std::string &device_id);
@@ -30,6 +32,7 @@ private:
     std::string get_cpu_model();
     std::string get_gpu_model();
     std::vector<ifaddrs *> get_network_adapters();
+    bool is_physical_drive(const std::string &device_name);
     std::string read_file(const std::string &path);
 
 public:

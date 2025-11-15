@@ -9,6 +9,7 @@
 #include <iostream>
 #include <ifaddrs.h>
 #include <net/if.h>
+#include <unordered_set>
 
 // Trims leading and trailing whitespace from a string
 std::string trim(const std::string &str)
@@ -90,7 +91,7 @@ std::string StatusMonitor::lookup_pci_names(const std::string &vendor_id, const 
     if (this->pci_database_loaded == false)
     {
         // Load the database from a standard location
-        this->load_pci_id_database("pci.ids");
+        this->load_pci_id_database(this->pci_file_location);
         this->pci_database_loaded = true;
     }
 
@@ -206,16 +207,22 @@ std::vector<ifaddrs *> StatusMonitor::get_network_adapters()
     struct ifaddrs *ifaddr;
     if (getifaddrs(&ifaddr) == -1)
     {
-        perror("getifaddrs");
-        _exit(254);
+        throw std::runtime_error("getifaddrs failed");
     }
 
     std::vector<ifaddrs *> copies;
+    std::unordered_set<std::string> seen_names;
 
     for (struct ifaddrs *ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next)
     {
         if (ifa->ifa_addr == nullptr)
             continue;
+
+        // Skip duplicates based on interface name
+        if (seen_names.find(ifa->ifa_name) != seen_names.end())
+            continue;
+
+        seen_names.insert(ifa->ifa_name);
 
         // allocate new ifaddrs
         ifaddrs *copy = new ifaddrs;
@@ -260,6 +267,19 @@ std::vector<ifaddrs *> StatusMonitor::get_network_adapters()
     return copies;
 }
 
+bool StatusMonitor::is_physical_drive(const std::string &device_name)
+{
+    // Ignore loop, ram, and device mapper
+    if (device_name.rfind("loop", 0) == 0)
+        return false;
+    if (device_name.rfind("zram", 0) == 0)
+        return false;
+    if (device_name.rfind("dm-", 0) == 0)
+        return false;
+
+    return true;
+}
+
 std::vector<std::string> StatusMonitor::determine_hardware_resources()
 {
     this->hardware_resources.push_back("CPU: " + get_cpu_model());
@@ -271,7 +291,7 @@ std::vector<std::string> StatusMonitor::determine_hardware_resources()
         _exit(255);
     }
 
-    this->hardware_resources.push_back("RAM: " + std::to_string(memory_info.totalram - memory_info.freeram) + " / " + std::to_string(memory_info.totalram));
+    this->hardware_resources.push_back("RAM: " + std::to_string((memory_info.totalram - memory_info.freeram) / (1000 * 1000)) + " / " + std::to_string(memory_info.totalram / (1000 * 1000)) + " MB");
     this->hardware_resources.push_back("GPU: " + get_gpu_model());
 
     // Free previous network adapters
@@ -296,15 +316,17 @@ std::vector<std::string> StatusMonitor::determine_hardware_resources()
         this->hardware_resources.push_back("Wireless" + std::to_string(i) + ": " + network_adapters[i]->ifa_name);
     }
 
-    // std::string path = "/sys/block";
-    // int storage_device_number = 0;
+    std::string path = "/sys/block";
+    int storage_device_number = 0;
 
-    // for (const auto &entry : std::filesystem::directory_iterator(path))
-    // {
-    //     std::string dev = entry.path().filename();
-    //     this->hardware_resources.push_back("Drive " + std::to_string(storage_device_number) + ": " + dev);
-    //     storage_device_number++;
-    // }
+    for (const auto &entry : std::filesystem::directory_iterator(path))
+    {
+        std::string dev = entry.path().filename();
+        if (!is_physical_drive(dev))
+            continue;
+        this->hardware_resources.push_back("Drive " + std::to_string(storage_device_number) + ": " + dev);
+        storage_device_number++;
+    }
 
     return this->hardware_resources;
 }
