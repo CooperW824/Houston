@@ -14,13 +14,15 @@ protected:
 // ===========================
 
 TEST_F(ProcessTest, ConstructorSetsAllFields) {
-    Process proc(1234, "test_process", 5000, 10.5, 1024);
+    Process proc(1234, "test_process", 5000, 10.5, 1024, 3600, "/usr/bin/test");
 
     EXPECT_EQ(proc.get_pid(), 1234);
     EXPECT_EQ(proc.get_process_name(), "test_process");
     EXPECT_EQ(proc.get_memory_usage(), 5000);
     EXPECT_DOUBLE_EQ(proc.get_cpu_usage(), 10.5);
     EXPECT_EQ(proc.get_network_usage(), 1024);
+    EXPECT_EQ(proc.get_cpu_time(), 3600);
+    EXPECT_EQ(proc.get_command(), "/usr/bin/test");
 }
 
 TEST_F(ProcessTest, ConstructorWithDefaultValues) {
@@ -31,6 +33,8 @@ TEST_F(ProcessTest, ConstructorWithDefaultValues) {
     EXPECT_EQ(proc.get_memory_usage(), 0);
     EXPECT_DOUBLE_EQ(proc.get_cpu_usage(), 0.0);
     EXPECT_EQ(proc.get_network_usage(), 0);
+    EXPECT_EQ(proc.get_cpu_time(), 0);
+    EXPECT_EQ(proc.get_command(), "");
 }
 
 // ===========================
@@ -65,23 +69,41 @@ TEST_F(ProcessTest, SetNetworkUsage) {
     EXPECT_EQ(proc.get_network_usage(), 2048);
 }
 
+TEST_F(ProcessTest, SetCpuTime) {
+    Process proc(1000);
+    proc.set_cpu_time(7200);
+
+    EXPECT_EQ(proc.get_cpu_time(), 7200);
+}
+
+TEST_F(ProcessTest, SetCommand) {
+    Process proc(1000);
+    proc.set_command("/usr/bin/firefox");
+
+    EXPECT_EQ(proc.get_command(), "/usr/bin/firefox");
+}
+
 // ===========================
 // Multiple Updates Tests
 // ===========================
 
 TEST_F(ProcessTest, MultipleUpdates) {
-    Process proc(1000, "initial_name", 1000, 5.0, 100);
+    Process proc(1000, "initial_name", 1000, 5.0, 100, 60, "/bin/sh");
 
     proc.set_process_name("updated_name");
     proc.set_memory_usage(2000);
     proc.set_cpu_usage(10.0);
     proc.set_network_usage(200);
+    proc.set_cpu_time(120);
+    proc.set_command("/usr/bin/bash");
 
-    EXPECT_EQ(proc.get_pid(), 1000);  // PID should not change
+    EXPECT_EQ(proc.get_pid(), 1000);
     EXPECT_EQ(proc.get_process_name(), "updated_name");
     EXPECT_EQ(proc.get_memory_usage(), 2000);
     EXPECT_DOUBLE_EQ(proc.get_cpu_usage(), 10.0);
     EXPECT_EQ(proc.get_network_usage(), 200);
+    EXPECT_EQ(proc.get_cpu_time(), 120);
+    EXPECT_EQ(proc.get_command(), "/usr/bin/bash");
 }
 
 // ===========================
@@ -89,23 +111,27 @@ TEST_F(ProcessTest, MultipleUpdates) {
 // ===========================
 
 TEST_F(ProcessTest, ZeroValues) {
-    Process proc(0, "", 0, 0.0, 0);
+    Process proc(0, "", 0, 0.0, 0, 0, "");
 
     EXPECT_EQ(proc.get_pid(), 0);
     EXPECT_EQ(proc.get_process_name(), "");
     EXPECT_EQ(proc.get_memory_usage(), 0);
     EXPECT_DOUBLE_EQ(proc.get_cpu_usage(), 0.0);
     EXPECT_EQ(proc.get_network_usage(), 0);
+    EXPECT_EQ(proc.get_cpu_time(), 0);
+    EXPECT_EQ(proc.get_command(), "");
 }
 
 TEST_F(ProcessTest, LargeValues) {
-    Process proc(999999, "large_process", 999999999UL, 999.99, 999999999UL);
+    Process proc(999999, "large_process", 999999999UL, 999.99, 999999999UL, 999999999UL, "/very/long/path/to/command");
 
     EXPECT_EQ(proc.get_pid(), 999999);
     EXPECT_EQ(proc.get_process_name(), "large_process");
     EXPECT_EQ(proc.get_memory_usage(), 999999999UL);
     EXPECT_DOUBLE_EQ(proc.get_cpu_usage(), 999.99);
     EXPECT_EQ(proc.get_network_usage(), 999999999UL);
+    EXPECT_EQ(proc.get_cpu_time(), 999999999UL);
+    EXPECT_EQ(proc.get_command(), "/very/long/path/to/command");
 }
 
 TEST_F(ProcessTest, NegativePID) {

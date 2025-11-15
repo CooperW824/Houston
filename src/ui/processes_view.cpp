@@ -12,12 +12,13 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
     const int COL_SIGKILL_WIDTH = 2;
     const int COL_KILL_WIDTH = COL_SIGTERM_WIDTH + 1 + COL_SIGKILL_WIDTH;
     const int COL_PID_WIDTH = 10;
-    const int COL_NAME_WIDTH = 25;
-    const int COL_MEMORY_WIDTH = 15;
-    const int COL_CPU_WIDTH = 12;
-    const int COL_NETWORK_WIDTH = 15;
+    const int COL_NAME_WIDTH = 20;
+    const int COL_MEMORY_WIDTH = 12;
+    const int COL_CPU_WIDTH = 10;
+    const int COL_NETWORK_WIDTH = 12;
+    const int COL_TIME_WIDTH = 12;
 
-    enum class SortColumn { PID, NAME, MEMORY, CPU, NETWORK };
+    enum class SortColumn { PID, NAME, MEMORY, CPU, NETWORK, TIME, COMMAND };
 
     auto selected_index = std::make_shared<int>(0);
     auto hover_index = std::make_shared<int>(-1);
@@ -35,10 +36,12 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
     auto header_memory_box = std::make_shared<Box>();
     auto header_cpu_box = std::make_shared<Box>();
     auto header_network_box = std::make_shared<Box>();
+    auto header_time_box = std::make_shared<Box>();
+    auto header_command_box = std::make_shared<Box>();
 
     auto base_component = Renderer([&, selected_index, hover_index, hover_sigterm, hover_sigkill, search_mode, search_phrase, sort_column, sort_ascending,
-                                     boxes, sigterm_boxes, sigkill_boxes, header_pid_box, header_name_box, header_memory_box, header_cpu_box, header_network_box,
-                                     COL_SIGTERM_WIDTH, COL_SIGKILL_WIDTH, COL_KILL_WIDTH, COL_PID_WIDTH, COL_NAME_WIDTH, COL_MEMORY_WIDTH, COL_CPU_WIDTH, COL_NETWORK_WIDTH]
+                                     boxes, sigterm_boxes, sigkill_boxes, header_pid_box, header_name_box, header_memory_box, header_cpu_box, header_network_box, header_time_box, header_command_box,
+                                     COL_SIGTERM_WIDTH, COL_SIGKILL_WIDTH, COL_KILL_WIDTH, COL_PID_WIDTH, COL_NAME_WIDTH, COL_MEMORY_WIDTH, COL_CPU_WIDTH, COL_NETWORK_WIDTH, COL_TIME_WIDTH]
     {
         boxes->clear();
         sigterm_boxes->clear();
@@ -65,6 +68,10 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
                         return ascending ? (a.get_cpu_usage() < b.get_cpu_usage()) : (a.get_cpu_usage() > b.get_cpu_usage());
                     case SortColumn::NETWORK:
                         return ascending ? (a.get_network_usage() < b.get_network_usage()) : (a.get_network_usage() > b.get_network_usage());
+                    case SortColumn::TIME:
+                        return ascending ? (a.get_cpu_time() < b.get_cpu_time()) : (a.get_cpu_time() > b.get_cpu_time());
+                    case SortColumn::COMMAND:
+                        return ascending ? (a.get_command() < b.get_command()) : (a.get_command() > b.get_command());
                     default:
                         return false;
                 }
@@ -112,13 +119,17 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
             separator(),
             text("PID" + std::string(get_indicator(SortColumn::PID))) | size(WIDTH, EQUAL, COL_PID_WIDTH) | reflect(*header_pid_box),
             separator(),
-            text("Process Name" + std::string(get_indicator(SortColumn::NAME))) | size(WIDTH, EQUAL, COL_NAME_WIDTH) | reflect(*header_name_box),
+            text("Name" + std::string(get_indicator(SortColumn::NAME))) | size(WIDTH, EQUAL, COL_NAME_WIDTH) | reflect(*header_name_box),
             separator(),
-            text("Memory (KB)" + std::string(get_indicator(SortColumn::MEMORY))) | size(WIDTH, EQUAL, COL_MEMORY_WIDTH) | reflect(*header_memory_box),
+            text("MEM (KB)" + std::string(get_indicator(SortColumn::MEMORY))) | size(WIDTH, EQUAL, COL_MEMORY_WIDTH) | reflect(*header_memory_box),
             separator(),
             text("CPU (%)" + std::string(get_indicator(SortColumn::CPU))) | size(WIDTH, EQUAL, COL_CPU_WIDTH) | reflect(*header_cpu_box),
             separator(),
-            text("Network (B)" + std::string(get_indicator(SortColumn::NETWORK))) | size(WIDTH, EQUAL, COL_NETWORK_WIDTH) | reflect(*header_network_box),
+            text("NET (B)" + std::string(get_indicator(SortColumn::NETWORK))) | size(WIDTH, EQUAL, COL_NETWORK_WIDTH) | reflect(*header_network_box),
+            separator(),
+            text("TIME+" + std::string(get_indicator(SortColumn::TIME))) | size(WIDTH, EQUAL, COL_TIME_WIDTH) | reflect(*header_time_box),
+            separator(),
+            text("Command" + std::string(get_indicator(SortColumn::COMMAND))) | flex | reflect(*header_command_box),
         }) | bold);
 
         rows.push_back(separator());
@@ -129,11 +140,17 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
         for (size_t i = 0; i < processes_copy.size(); i++)
         {
             const auto& proc = processes_copy[i];
-            std::stringstream pid_ss, mem_ss, cpu_ss, net_ss;
+            std::stringstream pid_ss, mem_ss, cpu_ss, net_ss, time_ss;
             pid_ss << proc.get_pid();
             mem_ss << proc.get_memory_usage();
             cpu_ss << std::fixed << std::setprecision(2) << proc.get_cpu_usage();
             net_ss << proc.get_network_usage();
+
+            unsigned long time_seconds = proc.get_cpu_time();
+            unsigned long hours = time_seconds / 3600;
+            unsigned long minutes = (time_seconds % 3600) / 60;
+            unsigned long seconds = time_seconds % 60;
+            time_ss << hours << ":" << std::setfill('0') << std::setw(2) << minutes << ":" << std::setw(2) << seconds;
 
             Element sigterm_btn = text("x") | color(Color::Red);
             if (static_cast<int>(i) == *hover_sigterm) {
@@ -161,6 +178,10 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
                 text(cpu_ss.str()) | size(WIDTH, EQUAL, COL_CPU_WIDTH),
                 separator(),
                 text(net_ss.str()) | size(WIDTH, EQUAL, COL_NETWORK_WIDTH),
+                separator(),
+                text(time_ss.str()) | size(WIDTH, EQUAL, COL_TIME_WIDTH),
+                separator(),
+                text(proc.get_command()) | flex,
             });
 
             if (static_cast<int>(i) == *selected_index) {
@@ -192,7 +213,7 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
     });
 
     return CatchEvent(base_component, [&, selected_index, hover_index, hover_sigterm, hover_sigkill, search_mode, search_phrase, sort_column, sort_ascending,
-                                        boxes, sigterm_boxes, sigkill_boxes, header_pid_box, header_name_box, header_memory_box, header_cpu_box, header_network_box](Event event) {
+                                        boxes, sigterm_boxes, sigkill_boxes, header_pid_box, header_name_box, header_memory_box, header_cpu_box, header_network_box, header_time_box, header_command_box](Event event) {
         if (event.is_mouse() && event.mouse().button == Mouse::Left && event.mouse().motion == Mouse::Released) {
             if (header_pid_box->Contain(event.mouse().x, event.mouse().y)) {
                 if (*sort_column == SortColumn::PID) {
@@ -236,6 +257,24 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
                 } else {
                     *sort_column = SortColumn::NETWORK;
                     *sort_ascending = false;
+                }
+                return true;
+            }
+            if (header_time_box->Contain(event.mouse().x, event.mouse().y)) {
+                if (*sort_column == SortColumn::TIME) {
+                    *sort_ascending = !*sort_ascending;
+                } else {
+                    *sort_column = SortColumn::TIME;
+                    *sort_ascending = false;
+                }
+                return true;
+            }
+            if (header_command_box->Contain(event.mouse().x, event.mouse().y)) {
+                if (*sort_column == SortColumn::COMMAND) {
+                    *sort_ascending = !*sort_ascending;
+                } else {
+                    *sort_column = SortColumn::COMMAND;
+                    *sort_ascending = true;
                 }
                 return true;
             }

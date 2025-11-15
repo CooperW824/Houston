@@ -3,6 +3,7 @@
 #include <vector>
 #include <statgrab.h>
 #include <mutex>
+#include <ctime>
 
 static std::once_flag init_flag;
 
@@ -26,6 +27,8 @@ std::vector<Process> get_processes_list()
         return processes;
     }
 
+    time_t current_time = time(nullptr);
+
     for (size_t i = 0; i < num_processes; i++)
     {
         pid_t pid = process_stats[i].pid;
@@ -33,8 +36,10 @@ std::vector<Process> get_processes_list()
         unsigned long memory = process_stats[i].proc_resident / 1024;
         double cpu = process_stats[i].cpu_percent;
         unsigned long network = 0;
+        unsigned long uptime = current_time - process_stats[i].start_time;
+        std::string command = process_stats[i].proctitle ? process_stats[i].proctitle : "";
 
-        Process proc(pid, name, memory, cpu, network);
+        Process proc(pid, name, memory, cpu, network, uptime, command);
         processes.push_back(proc);
     }
 
