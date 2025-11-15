@@ -17,17 +17,27 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
     const int COL_CPU_WIDTH = 12;
     const int COL_NETWORK_WIDTH = 15;
 
+    enum class SortColumn { PID, NAME, MEMORY, CPU, NETWORK };
+
     auto selected_index = std::make_shared<int>(0);
     auto hover_index = std::make_shared<int>(-1);
     auto hover_sigterm = std::make_shared<int>(-1);
     auto hover_sigkill = std::make_shared<int>(-1);
     auto search_mode = std::make_shared<bool>(false);
     auto search_phrase = std::make_shared<std::string>("");
+    auto sort_column = std::make_shared<SortColumn>(SortColumn::CPU);
+    auto sort_ascending = std::make_shared<bool>(false);
     auto boxes = std::make_shared<std::vector<Box>>();
     auto sigterm_boxes = std::make_shared<std::vector<Box>>();
     auto sigkill_boxes = std::make_shared<std::vector<Box>>();
+    auto header_pid_box = std::make_shared<Box>();
+    auto header_name_box = std::make_shared<Box>();
+    auto header_memory_box = std::make_shared<Box>();
+    auto header_cpu_box = std::make_shared<Box>();
+    auto header_network_box = std::make_shared<Box>();
 
-    auto base_component = Renderer([&, selected_index, hover_index, hover_sigterm, hover_sigkill, search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
+    auto base_component = Renderer([&, selected_index, hover_index, hover_sigterm, hover_sigkill, search_mode, search_phrase, sort_column, sort_ascending,
+                                     boxes, sigterm_boxes, sigkill_boxes, header_pid_box, header_name_box, header_memory_box, header_cpu_box, header_network_box,
                                      COL_SIGTERM_WIDTH, COL_SIGKILL_WIDTH, COL_KILL_WIDTH, COL_PID_WIDTH, COL_NAME_WIDTH, COL_MEMORY_WIDTH, COL_CPU_WIDTH, COL_NETWORK_WIDTH]
     {
         boxes->clear();
@@ -39,9 +49,27 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
             processes_copy = processes;
         }
 
-        std::sort(processes_copy.begin(), processes_copy.end(), [](const Process& a, const Process& b) {
-            return a.get_memory_usage() > b.get_memory_usage();
-        });
+        if (processes_copy.size() > 0 && processes_copy.size() < 10000) {
+            SortColumn current_sort = *sort_column;
+            bool ascending = *sort_ascending;
+
+            std::stable_sort(processes_copy.begin(), processes_copy.end(), [current_sort, ascending](const Process& a, const Process& b) {
+                switch (current_sort) {
+                    case SortColumn::PID:
+                        return ascending ? (a.get_pid() < b.get_pid()) : (a.get_pid() > b.get_pid());
+                    case SortColumn::NAME:
+                        return ascending ? (a.get_process_name() < b.get_process_name()) : (a.get_process_name() > b.get_process_name());
+                    case SortColumn::MEMORY:
+                        return ascending ? (a.get_memory_usage() < b.get_memory_usage()) : (a.get_memory_usage() > b.get_memory_usage());
+                    case SortColumn::CPU:
+                        return ascending ? (a.get_cpu_usage() < b.get_cpu_usage()) : (a.get_cpu_usage() > b.get_cpu_usage());
+                    case SortColumn::NETWORK:
+                        return ascending ? (a.get_network_usage() < b.get_network_usage()) : (a.get_network_usage() > b.get_network_usage());
+                    default:
+                        return false;
+                }
+            });
+        }
 
         if (!search_phrase->empty()) {
             std::string search_lower = *search_phrase;
@@ -72,18 +100,25 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
 
         std::vector<Element> rows;
 
+        auto get_indicator = [&](SortColumn col) {
+            if (*sort_column == col) {
+                return *sort_ascending ? " ▲" : " ▼";
+            }
+            return "";
+        };
+
         rows.push_back(hbox({
             text("Kill") | size(WIDTH, EQUAL, COL_KILL_WIDTH),
             separator(),
-            text("PID") | size(WIDTH, EQUAL, COL_PID_WIDTH),
+            text("PID" + std::string(get_indicator(SortColumn::PID))) | size(WIDTH, EQUAL, COL_PID_WIDTH) | reflect(*header_pid_box),
             separator(),
-            text("Process Name") | size(WIDTH, EQUAL, COL_NAME_WIDTH),
+            text("Process Name" + std::string(get_indicator(SortColumn::NAME))) | size(WIDTH, EQUAL, COL_NAME_WIDTH) | reflect(*header_name_box),
             separator(),
-            text("Memory (KB)") | size(WIDTH, EQUAL, COL_MEMORY_WIDTH),
+            text("Memory (KB)" + std::string(get_indicator(SortColumn::MEMORY))) | size(WIDTH, EQUAL, COL_MEMORY_WIDTH) | reflect(*header_memory_box),
             separator(),
-            text("CPU (%)") | size(WIDTH, EQUAL, COL_CPU_WIDTH),
+            text("CPU (%)" + std::string(get_indicator(SortColumn::CPU))) | size(WIDTH, EQUAL, COL_CPU_WIDTH) | reflect(*header_cpu_box),
             separator(),
-            text("Network (B)") | size(WIDTH, EQUAL, COL_NETWORK_WIDTH),
+            text("Network (B)" + std::string(get_indicator(SortColumn::NETWORK))) | size(WIDTH, EQUAL, COL_NETWORK_WIDTH) | reflect(*header_network_box),
         }) | bold);
 
         rows.push_back(separator());
@@ -156,7 +191,56 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
         return process_list;
     });
 
-    return CatchEvent(base_component, [&, selected_index, hover_index, hover_sigterm, hover_sigkill, search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes](Event event) {
+    return CatchEvent(base_component, [&, selected_index, hover_index, hover_sigterm, hover_sigkill, search_mode, search_phrase, sort_column, sort_ascending,
+                                        boxes, sigterm_boxes, sigkill_boxes, header_pid_box, header_name_box, header_memory_box, header_cpu_box, header_network_box](Event event) {
+        if (event.is_mouse() && event.mouse().button == Mouse::Left && event.mouse().motion == Mouse::Released) {
+            if (header_pid_box->Contain(event.mouse().x, event.mouse().y)) {
+                if (*sort_column == SortColumn::PID) {
+                    *sort_ascending = !*sort_ascending;
+                } else {
+                    *sort_column = SortColumn::PID;
+                    *sort_ascending = true;
+                }
+                return true;
+            }
+            if (header_name_box->Contain(event.mouse().x, event.mouse().y)) {
+                if (*sort_column == SortColumn::NAME) {
+                    *sort_ascending = !*sort_ascending;
+                } else {
+                    *sort_column = SortColumn::NAME;
+                    *sort_ascending = true;
+                }
+                return true;
+            }
+            if (header_memory_box->Contain(event.mouse().x, event.mouse().y)) {
+                if (*sort_column == SortColumn::MEMORY) {
+                    *sort_ascending = !*sort_ascending;
+                } else {
+                    *sort_column = SortColumn::MEMORY;
+                    *sort_ascending = false;
+                }
+                return true;
+            }
+            if (header_cpu_box->Contain(event.mouse().x, event.mouse().y)) {
+                if (*sort_column == SortColumn::CPU) {
+                    *sort_ascending = !*sort_ascending;
+                } else {
+                    *sort_column = SortColumn::CPU;
+                    *sort_ascending = false;
+                }
+                return true;
+            }
+            if (header_network_box->Contain(event.mouse().x, event.mouse().y)) {
+                if (*sort_column == SortColumn::NETWORK) {
+                    *sort_ascending = !*sort_ascending;
+                } else {
+                    *sort_column = SortColumn::NETWORK;
+                    *sort_ascending = false;
+                }
+                return true;
+            }
+        }
+
         return handle_processes_view_event(
             event,
             selected_index,
