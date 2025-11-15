@@ -1,6 +1,7 @@
 #include "main_view.hpp"
 #include "processes_view.hpp"
 #include <chrono>
+#include <atomic>
 
 void start_ui(double refresh_rate_seconds)
 {
@@ -47,19 +48,26 @@ void start_ui(double refresh_rate_seconds)
 
     auto screen = ScreenInteractive::Fullscreen();
 
+    std::atomic<bool> should_exit(false);
     std::thread refresh_thread([&]() {
-        while (true) {
+        while (!should_exit) {
             std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(refresh_rate_seconds * 1000)));
-            auto new_processes = get_processes_list();
-            {
-                std::lock_guard<std::mutex> lock(processes_mutex);
-                processes = new_processes;
+            if (!should_exit) {
+                auto new_processes = get_processes_list();
+                {
+                    std::lock_guard<std::mutex> lock(processes_mutex);
+                    processes = new_processes;
+                }
+                screen.PostEvent(Event::Custom);
             }
-            screen.PostEvent(Event::Custom);
         }
     });
 
     screen.Loop(main_view);
-    refresh_thread.detach();
+
+    should_exit = true;
+    if (refresh_thread.joinable()) {
+        refresh_thread.join();
+    }
 }
 
