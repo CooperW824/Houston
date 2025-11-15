@@ -30,11 +30,18 @@ FetchContent_MakeAvailable(ftxui)
 add_executable(houston src/main.cpp)
 target_include_directories(houston PRIVATE src)
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(STATGRAB REQUIRED libstatgrab)
+
 target_link_libraries(houston
   PRIVATE ftxui::screen
   PRIVATE ftxui::dom
-  PRIVATE ftxui::component 
+  PRIVATE ftxui::component
+  PRIVATE ${STATGRAB_LIBRARIES}
 )
+
+target_include_directories(houston PRIVATE ${STATGRAB_INCLUDE_DIRS})
+target_compile_options(houston PRIVATE ${STATGRAB_CFLAGS_OTHER})
 
 
 if (EMSCRIPTEN)
