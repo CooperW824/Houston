@@ -42,14 +42,3 @@ target_link_libraries(houston
 
 target_include_directories(houston PRIVATE ${STATGRAB_INCLUDE_DIRS})
 target_compile_options(houston PRIVATE ${STATGRAB_CFLAGS_OTHER})
-
-
-if (EMSCRIPTEN)
-  string(APPEND CMAKE_CXX_FLAGS " -s USE_PTHREADS")
-  string(APPEND CMAKE_EXE_LINKER_FLAGS " -s ASYNCIFY")
-  string(APPEND CMAKE_EXE_LINKER_FLAGS " -s PROXY_TO_PTHREAD")
-
-  foreach(file "index.html" "run_webassembly.py")
-    configure_file("src/${file}" ${file})
-  endforeach(file)
-endif()
