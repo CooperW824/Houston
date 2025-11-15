@@ -3,6 +3,7 @@
 ## Installing libstatgrab
 
     cd external/libstatgrab
+    ./autogen.sh
     ./configure --prefix=$HOME/.local
     make
     make install
