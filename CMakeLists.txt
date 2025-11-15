@@ -36,7 +36,6 @@ target_link_libraries(houston
   PRIVATE ftxui::component 
 )
 
-target_link_libraries(houston PRIVATE statgrab)
 
 if (EMSCRIPTEN)
   string(APPEND CMAKE_CXX_FLAGS " -s USE_PTHREADS")
