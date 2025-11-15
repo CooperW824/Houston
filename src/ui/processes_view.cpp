@@ -1,5 +1,6 @@
 #include "processes_view.hpp"
 #include "processes_view_inputs.hpp"
+#include "process_detail_view.hpp"
 #include <algorithm>
 #include <sstream>
 #include <iomanip>
@@ -28,6 +29,12 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
     auto search_phrase = std::make_shared<std::string>("");
     auto sort_column = std::make_shared<SortColumn>(SortColumn::CPU);
     auto sort_ascending = std::make_shared<bool>(false);
+    auto show_detail_view = std::make_shared<bool>(false);
+    auto detail_process_pid = std::make_shared<pid_t>(0);
+    auto cpu_history = std::make_shared<std::vector<float>>();
+    auto memory_history = std::make_shared<std::vector<float>>();
+    auto network_history = std::make_shared<std::vector<float>>();
+    const int HISTORY_SIZE = 60;
     auto boxes = std::make_shared<std::vector<Box>>();
     auto sigterm_boxes = std::make_shared<std::vector<Box>>();
     auto sigkill_boxes = std::make_shared<std::vector<Box>>();
@@ -41,8 +48,47 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
 
     auto base_component = Renderer([&, selected_index, hover_index, hover_sigterm, hover_sigkill, search_mode, search_phrase, sort_column, sort_ascending,
                                      boxes, sigterm_boxes, sigkill_boxes, header_pid_box, header_name_box, header_memory_box, header_cpu_box, header_network_box, header_time_box, header_command_box,
+                                     show_detail_view, detail_process_pid, cpu_history, memory_history, network_history, HISTORY_SIZE,
                                      COL_SIGTERM_WIDTH, COL_SIGKILL_WIDTH, COL_KILL_WIDTH, COL_PID_WIDTH, COL_NAME_WIDTH, COL_MEMORY_WIDTH, COL_CPU_WIDTH, COL_NETWORK_WIDTH, COL_TIME_WIDTH]
     {
+        if (*show_detail_view) {
+            std::vector<Process> processes_copy;
+            {
+                std::lock_guard<std::mutex> lock(processes_mutex);
+                processes_copy = processes;
+            }
+
+            auto it = std::find_if(processes_copy.begin(), processes_copy.end(),
+                [&](const Process& p) { return p.get_pid() == *detail_process_pid; });
+
+            if (it != processes_copy.end()) {
+                cpu_history->push_back(static_cast<float>(it->get_cpu_usage()));
+                memory_history->push_back(static_cast<float>(it->get_memory_usage()));
+                network_history->push_back(static_cast<float>(it->get_network_usage()));
+
+                if (cpu_history->size() > HISTORY_SIZE) {
+                    cpu_history->erase(cpu_history->begin());
+                }
+                if (memory_history->size() > HISTORY_SIZE) {
+                    memory_history->erase(memory_history->begin());
+                }
+                if (network_history->size() > HISTORY_SIZE) {
+                    network_history->erase(network_history->begin());
+                }
+
+                return create_process_detail_view(*it, *cpu_history, *memory_history, *network_history);
+            } else {
+                return vbox({
+                    text("Process Not Found") | bold | center,
+                    separator(),
+                    text(""),
+                    text("The process (PID: " + std::to_string(*detail_process_pid) + ") no longer exists.") | center,
+                    text(""),
+                    text("Press ESC to return to process list") | dim | center,
+                }) | border | flex;
+            }
+        }
+
         boxes->clear();
         sigterm_boxes->clear();
         sigkill_boxes->clear();
@@ -213,7 +259,118 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
     });
 
     return CatchEvent(base_component, [&, selected_index, hover_index, hover_sigterm, hover_sigkill, search_mode, search_phrase, sort_column, sort_ascending,
-                                        boxes, sigterm_boxes, sigkill_boxes, header_pid_box, header_name_box, header_memory_box, header_cpu_box, header_network_box, header_time_box, header_command_box](Event event) {
+                                        boxes, sigterm_boxes, sigkill_boxes, header_pid_box, header_name_box, header_memory_box, header_cpu_box, header_network_box, header_time_box, header_command_box,
+                                        show_detail_view, detail_process_pid, cpu_history, memory_history, network_history](Event event) {
+        if (*show_detail_view) {
+            if (event == Event::Escape) {
+                *show_detail_view = false;
+                *detail_process_pid = 0;
+                cpu_history->clear();
+                memory_history->clear();
+                network_history->clear();
+                return true;
+            }
+            if (event == Event::Backspace) {
+                std::vector<Process> processes_copy;
+                {
+                    std::lock_guard<std::mutex> lock(processes_mutex);
+                    processes_copy = processes;
+                }
+
+                auto it = std::find_if(processes_copy.begin(), processes_copy.end(),
+                    [&](const Process& p) { return p.get_pid() == *detail_process_pid; });
+
+                if (it != processes_copy.end()) {
+                    it->kill(15);
+                }
+                *show_detail_view = false;
+                *detail_process_pid = 0;
+                cpu_history->clear();
+                memory_history->clear();
+                network_history->clear();
+                return true;
+            }
+            if (event == Event::Delete) {
+                std::vector<Process> processes_copy;
+                {
+                    std::lock_guard<std::mutex> lock(processes_mutex);
+                    processes_copy = processes;
+                }
+
+                auto it = std::find_if(processes_copy.begin(), processes_copy.end(),
+                    [&](const Process& p) { return p.get_pid() == *detail_process_pid; });
+
+                if (it != processes_copy.end()) {
+                    it->kill(9);
+                }
+                *show_detail_view = false;
+                *detail_process_pid = 0;
+                cpu_history->clear();
+                memory_history->clear();
+                network_history->clear();
+                return true;
+            }
+            return true;
+        }
+
+        if (event == Event::Return && !*search_mode) {
+            std::vector<Process> processes_copy;
+            {
+                std::lock_guard<std::mutex> lock(processes_mutex);
+                processes_copy = processes;
+            }
+
+            SortColumn current_sort = *sort_column;
+            bool ascending = *sort_ascending;
+
+            if (processes_copy.size() > 0 && processes_copy.size() < 10000) {
+                std::stable_sort(processes_copy.begin(), processes_copy.end(), [current_sort, ascending](const Process& a, const Process& b) {
+                    switch (current_sort) {
+                        case SortColumn::PID:
+                            return ascending ? (a.get_pid() < b.get_pid()) : (a.get_pid() > b.get_pid());
+                        case SortColumn::NAME:
+                            return ascending ? (a.get_process_name() < b.get_process_name()) : (a.get_process_name() > b.get_process_name());
+                        case SortColumn::MEMORY:
+                            return ascending ? (a.get_memory_usage() < b.get_memory_usage()) : (a.get_memory_usage() > b.get_memory_usage());
+                        case SortColumn::CPU:
+                            return ascending ? (a.get_cpu_usage() < b.get_cpu_usage()) : (a.get_cpu_usage() > b.get_cpu_usage());
+                        case SortColumn::NETWORK:
+                            return ascending ? (a.get_network_usage() < b.get_network_usage()) : (a.get_network_usage() > b.get_network_usage());
+                        case SortColumn::TIME:
+                            return ascending ? (a.get_cpu_time() < b.get_cpu_time()) : (a.get_cpu_time() > b.get_cpu_time());
+                        case SortColumn::COMMAND:
+                            return ascending ? (a.get_command() < b.get_command()) : (a.get_command() > b.get_command());
+                        default:
+                            return false;
+                    }
+                });
+            }
+
+            if (!search_phrase->empty()) {
+                std::string search_lower = *search_phrase;
+                std::transform(search_lower.begin(), search_lower.end(), search_lower.begin(), ::tolower);
+
+                processes_copy.erase(
+                    std::remove_if(processes_copy.begin(), processes_copy.end(),
+                        [&search_lower](const Process& proc) {
+                            std::string name_lower = proc.get_process_name();
+                            std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
+                            std::string pid_str = std::to_string(proc.get_pid());
+                            return name_lower.find(search_lower) == std::string::npos &&
+                                   pid_str.find(search_lower) == std::string::npos;
+                        }
+                    ),
+                    processes_copy.end()
+                );
+            }
+
+            if (*selected_index >= 0 && *selected_index < static_cast<int>(processes_copy.size())) {
+                *detail_process_pid = processes_copy[*selected_index].get_pid();
+                *show_detail_view = true;
+                return true;
+            }
+        }
+
         if (event.is_mouse() && event.mouse().button == Mouse::Left && event.mouse().motion == Mouse::Released) {
             if (header_pid_box->Contain(event.mouse().x, event.mouse().y)) {
                 if (*sort_column == SortColumn::PID) {
