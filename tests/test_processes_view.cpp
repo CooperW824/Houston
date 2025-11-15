@@ -358,6 +358,57 @@ TEST_F(ProcessesViewTest, MouseWheelUpAtZeroStaysAtZero) {
 }
 
 // ===========================
+// Kill Process Keyboard Shortcuts Tests
+// ===========================
+
+TEST_F(ProcessesViewTest, BackspaceKillsSelectedProcessWithSIGTERM) {
+    *selected_index = 1;
+    *search_mode = false;
+
+    Event event = Event::Backspace;
+
+    bool handled = handle_processes_view_event(
+        event, selected_index, hover_index, hover_sigterm, hover_sigkill,
+        search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
+        processes, processes_mutex
+    );
+
+    EXPECT_TRUE(handled);
+}
+
+TEST_F(ProcessesViewTest, DeleteKillsSelectedProcessWithSIGKILL) {
+    *selected_index = 2;
+    *search_mode = false;
+
+    Event event = Event::Delete;
+
+    bool handled = handle_processes_view_event(
+        event, selected_index, hover_index, hover_sigterm, hover_sigkill,
+        search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
+        processes, processes_mutex
+    );
+
+    EXPECT_TRUE(handled);
+}
+
+TEST_F(ProcessesViewTest, BackspaceInSearchModeDoesNotKillProcess) {
+    *selected_index = 1;
+    *search_mode = true;
+    *search_phrase = "test";
+
+    Event event = Event::Backspace;
+
+    bool handled = handle_processes_view_event(
+        event, selected_index, hover_index, hover_sigterm, hover_sigkill,
+        search_mode, search_phrase, boxes, sigterm_boxes, sigkill_boxes,
+        processes, processes_mutex
+    );
+
+    EXPECT_TRUE(handled);
+    EXPECT_EQ(*search_phrase, "tes");
+}
+
+// ===========================
 // Edge Case Tests
 // ===========================
 

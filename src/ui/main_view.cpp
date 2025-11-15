@@ -30,8 +30,8 @@ void start_ui(double refresh_rate_seconds)
             if (event == Event::ArrowUp || event == Event::ArrowDown ||
                 event == Event::PageUp || event == Event::PageDown ||
                 event == Event::Character('/') || event == Event::Escape ||
-                event == Event::Backspace || event == Event::Return ||
-                event.is_character() || event.is_mouse()) {
+                event == Event::Backspace || event == Event::Delete ||
+                event == Event::Return || event.is_character() || event.is_mouse()) {
                 return processes_renderer->OnEvent(event);
             }
         }
