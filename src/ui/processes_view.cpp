@@ -5,6 +5,7 @@
 #include <sstream>
 #include <iomanip>
 #include <memory>
+#include <chrono>
 #include "ftxui/screen/box.hpp"
 
 Component create_processes_view(std::vector<Process>& processes, std::mutex& processes_mutex, double& refresh_rate_seconds)
@@ -34,6 +35,7 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
     auto cpu_history = std::make_shared<std::vector<float>>();
     auto memory_history = std::make_shared<std::vector<float>>();
     auto network_history = std::make_shared<std::vector<float>>();
+    auto last_sample_time = std::make_shared<std::chrono::steady_clock::time_point>(std::chrono::steady_clock::now());
     const int HISTORY_SIZE = 60;
     auto boxes = std::make_shared<std::vector<Box>>();
     auto sigterm_boxes = std::make_shared<std::vector<Box>>();
@@ -48,7 +50,7 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
 
     auto base_component = Renderer([&, selected_index, hover_index, hover_sigterm, hover_sigkill, search_mode, search_phrase, sort_column, sort_ascending,
                                      boxes, sigterm_boxes, sigkill_boxes, header_pid_box, header_name_box, header_memory_box, header_cpu_box, header_network_box, header_time_box, header_command_box,
-                                     show_detail_view, detail_process_pid, cpu_history, memory_history, network_history, HISTORY_SIZE,
+                                     show_detail_view, detail_process_pid, cpu_history, memory_history, network_history, last_sample_time, HISTORY_SIZE,
                                      COL_SIGTERM_WIDTH, COL_SIGKILL_WIDTH, COL_KILL_WIDTH, COL_PID_WIDTH, COL_NAME_WIDTH, COL_MEMORY_WIDTH, COL_CPU_WIDTH, COL_NETWORK_WIDTH, COL_TIME_WIDTH]
     {
         if (*show_detail_view) {
@@ -62,18 +64,26 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
                 [&](const Process& p) { return p.get_pid() == *detail_process_pid; });
 
             if (it != processes_copy.end()) {
-                cpu_history->push_back(static_cast<float>(it->get_cpu_usage()));
-                memory_history->push_back(static_cast<float>(it->get_memory_usage()));
-                network_history->push_back(static_cast<float>(it->get_network_usage()));
+                auto now = std::chrono::steady_clock::now();
+                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - *last_sample_time).count();
+                auto sample_interval_ms = static_cast<long long>(refresh_rate_seconds * 1000);
 
-                if (cpu_history->size() > HISTORY_SIZE) {
-                    cpu_history->erase(cpu_history->begin());
-                }
-                if (memory_history->size() > HISTORY_SIZE) {
-                    memory_history->erase(memory_history->begin());
-                }
-                if (network_history->size() > HISTORY_SIZE) {
-                    network_history->erase(network_history->begin());
+                if (elapsed >= sample_interval_ms) {
+                    cpu_history->push_back(static_cast<float>(it->get_cpu_usage()));
+                    memory_history->push_back(static_cast<float>(it->get_memory_usage()));
+                    network_history->push_back(static_cast<float>(it->get_network_usage()));
+
+                    if (cpu_history->size() > HISTORY_SIZE) {
+                        cpu_history->erase(cpu_history->begin());
+                    }
+                    if (memory_history->size() > HISTORY_SIZE) {
+                        memory_history->erase(memory_history->begin());
+                    }
+                    if (network_history->size() > HISTORY_SIZE) {
+                        network_history->erase(network_history->begin());
+                    }
+
+                    *last_sample_time = now;
                 }
 
                 return create_process_detail_view(*it, *cpu_history, *memory_history, *network_history);
@@ -260,7 +270,7 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
 
     return CatchEvent(base_component, [&, selected_index, hover_index, hover_sigterm, hover_sigkill, search_mode, search_phrase, sort_column, sort_ascending,
                                         boxes, sigterm_boxes, sigkill_boxes, header_pid_box, header_name_box, header_memory_box, header_cpu_box, header_network_box, header_time_box, header_command_box,
-                                        show_detail_view, detail_process_pid, cpu_history, memory_history, network_history](Event event) {
+                                        show_detail_view, detail_process_pid, cpu_history, memory_history, network_history, last_sample_time](Event event) {
         if (*show_detail_view) {
             if (event == Event::Escape) {
                 *show_detail_view = false;
@@ -268,6 +278,7 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
                 cpu_history->clear();
                 memory_history->clear();
                 network_history->clear();
+                *last_sample_time = std::chrono::steady_clock::now();
                 return true;
             }
             if (event == Event::Backspace) {
@@ -288,6 +299,7 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
                 cpu_history->clear();
                 memory_history->clear();
                 network_history->clear();
+                *last_sample_time = std::chrono::steady_clock::now();
                 return true;
             }
             if (event == Event::Delete) {
@@ -308,6 +320,7 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
                 cpu_history->clear();
                 memory_history->clear();
                 network_history->clear();
+                *last_sample_time = std::chrono::steady_clock::now();
                 return true;
             }
             return true;
