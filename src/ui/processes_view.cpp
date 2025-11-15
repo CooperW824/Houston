@@ -89,7 +89,7 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
                     *last_sample_time = now;
                 }
 
-                return create_process_detail_view(*it, *cpu_history, *memory_history, *network_history);
+                return create_process_detail_view(*it, *cpu_history, *memory_history, *network_history, HISTORY_SIZE);
             } else {
                 return vbox({
                     text("Process Not Found") | bold | center,

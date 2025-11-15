@@ -6,7 +6,8 @@
 Element create_process_detail_view(const Process& process,
                                    const std::vector<float>& cpu_history,
                                    const std::vector<float>& memory_history,
-                                   const std::vector<float>& network_history)
+                                   const std::vector<float>& network_history,
+                                   int history_size)
 {
     unsigned long uptime_seconds = process.get_cpu_time();
     unsigned long days = uptime_seconds / 86400;
@@ -26,64 +27,96 @@ Element create_process_detail_view(const Process& process,
     }
 
 
-    auto cpu_func = [cpu_history](int width, int height) {
+    auto cpu_func = [cpu_history, history_size](int width, int height) {
         std::vector<int> output;
-        if (width <= 0 || height <= 0 || cpu_history.empty()) {
+        if (width <= 0 || height <= 0) {
             return output;
         }
 
         output.reserve(width);
         for (int x = 0; x < width; ++x) {
-            size_t index = (x * cpu_history.size()) / width;
-            if (index < cpu_history.size()) {
-                int value = static_cast<int>((cpu_history[index] * height) / 100.0);
-                output.push_back(std::min(std::max(0, value), height));
+            int history_pos = (x * history_size) / width;
+            int data_start = history_size - static_cast<int>(cpu_history.size());
+            if (history_pos >= data_start && history_pos < history_size) {
+                size_t data_index = history_pos - data_start;
+                if (data_index < cpu_history.size()) {
+                    if (cpu_history[data_index] < 0.01) {
+                        output.push_back(-1);
+                    } else {
+                        int value = static_cast<int>((cpu_history[data_index] * height) / 100.0);
+                        output.push_back(std::min(std::max(0, value), height));
+                    }
+                } else {
+                    output.push_back(-1);
+                }
             } else {
-                output.push_back(0);
+                output.push_back(-1);
             }
         }
         return output;
     };
 
-    auto mem_func = [memory_history](int width, int height) {
+    auto mem_func = [memory_history, history_size](int width, int height) {
         std::vector<int> output;
-        if (width <= 0 || height <= 0 || memory_history.empty()) {
+        if (width <= 0 || height <= 0) {
             return output;
         }
 
         float max_mem = memory_history.empty() ? 1.0f : *std::max_element(memory_history.begin(), memory_history.end());
         if (max_mem <= 0) max_mem = 1.0f;
+        max_mem *= 1.5f;
 
         output.reserve(width);
         for (int x = 0; x < width; ++x) {
-            size_t index = (x * memory_history.size()) / width;
-            if (index < memory_history.size()) {
-                int value = static_cast<int>((memory_history[index] * height) / max_mem);
-                output.push_back(std::min(std::max(0, value), height));
+            int history_pos = (x * history_size) / width;
+            int data_start = history_size - static_cast<int>(memory_history.size());
+            if (history_pos >= data_start && history_pos < history_size) {
+                size_t data_index = history_pos - data_start;
+                if (data_index < memory_history.size()) {
+                    if (memory_history[data_index] < 0.01) {
+                        output.push_back(-1);
+                    } else {
+                        int value = static_cast<int>((memory_history[data_index] * height) / max_mem);
+                        output.push_back(std::min(std::max(0, value), height));
+                    }
+                } else {
+                    output.push_back(-1);
+                }
             } else {
-                output.push_back(0);
+                output.push_back(-1);
             }
         }
         return output;
     };
 
-    auto net_func = [network_history](int width, int height) {
+    auto net_func = [network_history, history_size](int width, int height) {
         std::vector<int> output;
-        if (width <= 0 || height <= 0 || network_history.empty()) {
+        if (width <= 0 || height <= 0) {
             return output;
         }
 
         float max_net = network_history.empty() ? 1.0f : *std::max_element(network_history.begin(), network_history.end());
         if (max_net <= 0) max_net = 1.0f;
+        max_net *= 1.5f;
 
         output.reserve(width);
         for (int x = 0; x < width; ++x) {
-            size_t index = (x * network_history.size()) / width;
-            if (index < network_history.size()) {
-                int value = static_cast<int>((network_history[index] * height) / max_net);
-                output.push_back(std::min(std::max(0, value), height));
+            int history_pos = (x * history_size) / width;
+            int data_start = history_size - static_cast<int>(network_history.size());
+            if (history_pos >= data_start && history_pos < history_size) {
+                size_t data_index = history_pos - data_start;
+                if (data_index < network_history.size()) {
+                    if (network_history[data_index] < 0.01) {
+                        output.push_back(-1);
+                    } else {
+                        int value = static_cast<int>((network_history[data_index] * height) / max_net);
+                        output.push_back(std::min(std::max(0, value), height));
+                    }
+                } else {
+                    output.push_back(-1);
+                }
             } else {
-                output.push_back(0);
+                output.push_back(-1);
             }
         }
         return output;
@@ -91,6 +124,11 @@ Element create_process_detail_view(const Process& process,
 
     float max_mem = memory_history.empty() ? 0.0f : *std::max_element(memory_history.begin(), memory_history.end());
     float max_net = network_history.empty() ? 0.0f : *std::max_element(network_history.begin(), network_history.end());
+
+    if (max_mem <= 0) max_mem = 100.0f;
+    if (max_net <= 0) max_net = 100.0f;
+    max_mem *= 1.5f;
+    max_net *= 1.5f;
 
     std::stringstream max_mem_ss, max_net_ss;
     max_mem_ss << std::fixed << std::setprecision(0) << max_mem;

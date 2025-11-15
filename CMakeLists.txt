@@ -32,6 +32,7 @@ add_executable(houston
   src/status_monitor/status_monitor.cpp
   src/processes_list/process.cpp
   src/processes_list/processes_list.cpp
+  src/processes_list/network_tracker.cpp
   src/ui/main_view.cpp
   src/ui/processes_view.cpp
   src/ui/processes_view_inputs.cpp
