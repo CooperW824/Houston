@@ -19,12 +19,22 @@ void start_ui(double refresh_rate_seconds)
          processes_renderer},
         &selected_function);
 
-    auto main_view = Container::Vertical({
+    auto main_container_base = Container::Vertical({
         function_select,
         tab_container,
     });
 
-    auto renderer = Renderer(main_view, [&]
+    auto main_container = CatchEvent(main_container_base, [&](Event event) {
+        if (selected_function == 1) {
+            if (event == Event::ArrowUp || event == Event::ArrowDown ||
+                event == Event::PageUp || event == Event::PageDown) {
+                return processes_renderer->OnEvent(event);
+            }
+        }
+        return false;
+    });
+
+    auto main_view = Renderer(main_container, [&]
                              { return vbox({
                                           function_select->Render(),
                                           separator(),
@@ -46,7 +56,7 @@ void start_ui(double refresh_rate_seconds)
         }
     });
 
-    screen.Loop(renderer);
+    screen.Loop(main_view);
     refresh_thread.detach();
 }
 

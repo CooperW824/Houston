@@ -2,10 +2,13 @@
 #include <algorithm>
 #include <sstream>
 #include <iomanip>
+#include <memory>
 
 Component create_processes_view(std::vector<Process>& processes, std::mutex& processes_mutex, double& refresh_rate_seconds)
 {
-    return Renderer([&]
+    auto selected_index = std::make_shared<int>(0);
+
+    auto base_component = Renderer([&, selected_index]
     {
         std::vector<Process> processes_copy;
         {
@@ -16,6 +19,13 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
         std::sort(processes_copy.begin(), processes_copy.end(), [](const Process& a, const Process& b) {
             return a.get_memory_usage() > b.get_memory_usage();
         });
+
+        if (*selected_index >= static_cast<int>(processes_copy.size())) {
+            *selected_index = std::max(0, static_cast<int>(processes_copy.size()) - 1);
+        }
+        if (*selected_index < 0) {
+            *selected_index = 0;
+        }
 
         std::vector<Element> rows;
 
@@ -38,15 +48,16 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
 
         rows.push_back(separator());
 
-        for (const auto& proc : processes_copy)
+        for (size_t i = 0; i < processes_copy.size(); i++)
         {
+            const auto& proc = processes_copy[i];
             std::stringstream pid_ss, mem_ss, cpu_ss, net_ss;
             pid_ss << proc.get_pid();
             mem_ss << proc.get_memory_usage();
             cpu_ss << std::fixed << std::setprecision(2) << proc.get_cpu_usage();
             net_ss << proc.get_network_usage();
 
-            rows.push_back(hbox({
+            auto row = hbox({
                 text(pid_ss.str()) | size(WIDTH, EQUAL, 10),
                 separator(),
                 text(proc.get_process_name()) | size(WIDTH, EQUAL, 25),
@@ -56,10 +67,54 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
                 text(cpu_ss.str()) | size(WIDTH, EQUAL, 12),
                 separator(),
                 text(net_ss.str()) | size(WIDTH, EQUAL, 15),
-            }));
+            });
+
+            if (static_cast<int>(i) == *selected_index) {
+                row = row | bgcolor(Color::Blue) | bold | focus;
+            }
+
+            rows.push_back(row);
         }
 
-        return vbox(rows) | vscroll_indicator | frame | size(HEIGHT, LESS_THAN, 40);
+        return vbox(rows) | vscroll_indicator | yframe | flex;
+    });
+
+    return CatchEvent(base_component, [selected_index](Event event) {
+        if (event == Event::ArrowUp) {
+            (*selected_index)--;
+            if (*selected_index < 0) {
+                *selected_index = 0;
+            }
+            return true;
+        }
+        if (event == Event::ArrowDown) {
+            (*selected_index)++;
+            return true;
+        }
+        if (event == Event::PageUp) {
+            (*selected_index) -= 10;
+            if (*selected_index < 0) {
+                *selected_index = 0;
+            }
+            return true;
+        }
+        if (event == Event::PageDown) {
+            (*selected_index) += 10;
+            return true;
+        }
+        if (event.is_mouse()) {
+            if (event.mouse().button == Mouse::WheelUp) {
+                (*selected_index)--;
+                if (*selected_index < 0) {
+                    *selected_index = 0;
+                }
+                return true;
+            }
+            if (event.mouse().button == Mouse::WheelDown) {
+                (*selected_index)++;
+                return true;
+            }
+        }
+        return false;
     });
 }
-
