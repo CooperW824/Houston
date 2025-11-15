@@ -30,7 +30,7 @@ void start_ui(double refresh_rate_seconds)
                 event == Event::PageUp || event == Event::PageDown ||
                 event == Event::Character('/') || event == Event::Escape ||
                 event == Event::Backspace || event == Event::Return ||
-                event.is_character()) {
+                event.is_character() || event.is_mouse()) {
                 return processes_renderer->OnEvent(event);
             }
         }

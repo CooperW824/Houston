@@ -3,15 +3,19 @@
 #include <sstream>
 #include <iomanip>
 #include <memory>
+#include "ftxui/screen/box.hpp"
 
 Component create_processes_view(std::vector<Process>& processes, std::mutex& processes_mutex, double& refresh_rate_seconds)
 {
     auto selected_index = std::make_shared<int>(0);
+    auto hover_index = std::make_shared<int>(-1);
     auto search_mode = std::make_shared<bool>(false);
     auto search_phrase = std::make_shared<std::string>("");
+    auto boxes = std::make_shared<std::vector<Box>>();
 
-    auto base_component = Renderer([&, selected_index, search_mode, search_phrase]
+    auto base_component = Renderer([&, selected_index, hover_index, search_mode, search_phrase, boxes]
     {
+        boxes->clear();
         std::vector<Process> processes_copy;
         {
             std::lock_guard<std::mutex> lock(processes_mutex);
@@ -70,6 +74,7 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
 
         rows.push_back(separator());
 
+        boxes->resize(processes_copy.size());
         for (size_t i = 0; i < processes_copy.size(); i++)
         {
             const auto& proc = processes_copy[i];
@@ -93,8 +98,11 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
 
             if (static_cast<int>(i) == *selected_index) {
                 row = row | bgcolor(Color::Blue) | bold | focus;
+            } else if (static_cast<int>(i) == *hover_index) {
+                row = row | bgcolor(Color::GrayDark);
             }
 
+            row = row | reflect((*boxes)[i]);
             rows.push_back(row);
         }
 
@@ -116,7 +124,7 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
         return process_list;
     });
 
-    return CatchEvent(base_component, [selected_index, search_mode, search_phrase](Event event) {
+    return CatchEvent(base_component, [selected_index, hover_index, search_mode, search_phrase, boxes](Event event) {
         if (*search_mode) {
             if (event == Event::Escape) {
                 *search_mode = false;
@@ -179,17 +187,34 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
             return true;
         }
         if (event.is_mouse()) {
-            if (event.mouse().button == Mouse::WheelUp) {
+            auto mouse = event.mouse();
+
+            *hover_index = -1;
+            for (int i = 0; i < static_cast<int>(boxes->size()); ++i) {
+                if ((*boxes)[i].Contain(mouse.x, mouse.y)) {
+                    *hover_index = i;
+
+                    if (mouse.button == Mouse::Left && mouse.motion == Mouse::Released) {
+                        *selected_index = i;
+                        return true;
+                    }
+                    break;
+                }
+            }
+
+            if (mouse.button == Mouse::WheelUp) {
                 (*selected_index)--;
                 if (*selected_index < 0) {
                     *selected_index = 0;
                 }
                 return true;
             }
-            if (event.mouse().button == Mouse::WheelDown) {
+            if (mouse.button == Mouse::WheelDown) {
                 (*selected_index)++;
                 return true;
             }
+
+            return false;
         }
         return false;
     });
