@@ -179,7 +179,9 @@ Component create_processes_view(std::vector<Process>& processes, std::mutex& pro
                 *selected_index = 0;
                 return true;
             }
-            return true;
+            if (!event.is_mouse()) {
+                return true;
+            }
         }
 
         if (event == Event::Character('/')) {
