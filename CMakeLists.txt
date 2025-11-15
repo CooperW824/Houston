@@ -87,7 +87,9 @@ if(BUILD_TESTS)
   add_executable(houston_tests
     tests/test_process.cpp
     tests/test_processes_view.cpp
+    tests/test_network_tracker.cpp
     src/processes_list/process.cpp
+    src/processes_list/network_tracker.cpp
     src/ui/processes_view_inputs.cpp
   )
 

@@ -475,3 +475,21 @@ TEST_F(ProcessesViewTest, EmptyProcessList) {
     EXPECT_EQ(*selected_index, 6);
 }
 
+// ===========================
+// Double-Click and Display Tests
+// ===========================
+
+TEST_F(ProcessesViewTest, DisplayedPidsTracksCorrectPids) {
+    displayed_pids->resize(processes.size());
+
+    for (size_t i = 0; i < processes.size(); i++) {
+        (*displayed_pids)[i] = processes[i].get_pid();
+    }
+
+    EXPECT_EQ(displayed_pids->size(), processes.size());
+    EXPECT_EQ((*displayed_pids)[0], 1000);
+    EXPECT_EQ((*displayed_pids)[1], 2000);
+    EXPECT_EQ((*displayed_pids)[2], 3000);
+    EXPECT_EQ((*displayed_pids)[3], 4000);
+}
+
