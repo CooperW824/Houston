@@ -48,7 +48,9 @@ void start_ui(double refresh_rate_seconds)
                                       border);
     }
 
-    auto status_renderer = create_status_view(*hardware_resources, status_tab_contents);
+    // Stores the state of the resizable split for the status view (position of the separator)
+    auto split_state = std::make_shared<int>(45); // Initial width for the menu pane (e.g., 50 columns)
+    auto status_renderer = create_status_view(*hardware_resources, status_tab_contents, split_state);
 
     // Machine Optimize tab
     auto optimize_renderer = create_machine_optimizer_view(processes, processes_mutex);

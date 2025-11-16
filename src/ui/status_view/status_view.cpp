@@ -1,13 +1,10 @@
 #include "status_view.hpp"
 
-Component create_status_view(const std::vector<std::string> &hardware_resources, const std::vector<Component> &tab_contents)
+Component create_status_view(const std::vector<std::string> &hardware_resources, const std::vector<Component> &tab_contents, std::shared_ptr<int> split_state)
 {
     // 1. State Variables
     // Stores the index of the currently selected menu item (and thus the current tab)
     auto menu_selected = std::make_shared<int>(0);
-
-    // Stores the state of the resizable split (position of the separator)
-    auto split_state = std::make_shared<int>(45); // Initial width for the menu pane (e.g., 50 columns)
 
     // 2. The Menu Component
     auto menu_component =
