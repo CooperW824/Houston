@@ -80,7 +80,8 @@ Component create_mem_info_view(const double memory_total_mb, const double *memor
 
     // History graph component
     auto history_graph = Renderer([mem_func]()
-                                  { return vbox({graph(mem_func) | border | flex, text("Memory Usage") | bold | center}); });
+                                  { return vbox({graph(mem_func) | border | flex,
+                                                 text("Memory Usage") | bold | center}); });
 
     auto final_layout = ResizableSplit(
                             ResizableSplitOption{
