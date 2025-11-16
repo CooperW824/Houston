@@ -93,7 +93,7 @@ Element create_process_table(
         separator(),
         text("Name" + std::string(get_indicator(SortColumn::NAME))) | size(WIDTH, EQUAL, ViewState::COL_NAME_WIDTH) | reflect(*state.header_name_box),
         separator(),
-        text("MEM (KB)" + std::string(get_indicator(SortColumn::MEMORY))) | size(WIDTH, EQUAL, ViewState::COL_MEMORY_WIDTH) | reflect(*state.header_memory_box),
+        text("MEM (MB)" + std::string(get_indicator(SortColumn::MEMORY))) | size(WIDTH, EQUAL, ViewState::COL_MEMORY_WIDTH) | reflect(*state.header_memory_box),
         separator(),
         text("CPU (%)" + std::string(get_indicator(SortColumn::CPU))) | size(WIDTH, EQUAL, ViewState::COL_CPU_WIDTH) | reflect(*state.header_cpu_box),
         separator(),
@@ -116,7 +116,7 @@ Element create_process_table(
         (*state.displayed_pids)[i] = proc.get_pid();
         std::stringstream pid_ss, mem_ss, cpu_ss, net_ss, time_ss;
         pid_ss << proc.get_pid();
-        mem_ss << proc.get_memory_usage();
+        mem_ss << std::fixed << std::setprecision(2) << (proc.get_memory_usage() / 1024.0);
         cpu_ss << std::fixed << std::setprecision(2) << proc.get_cpu_usage();
         net_ss << proc.get_network_usage();
 

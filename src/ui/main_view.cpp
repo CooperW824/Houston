@@ -62,29 +62,29 @@ void start_ui(double refresh_rate_seconds)
     auto target_pid = std::make_shared<pid_t>(-1);
     auto process_killed = std::make_shared<bool>(false);
     auto kill_success = std::make_shared<bool>(false);
-    
-    auto optimize_button = Button("Optimize resource allocation with artificial intelligence", 
+
+    auto optimize_button = Button("Optimize resource allocation with artificial intelligence",
                                   [machine_optimizer, optimize_future, optimize_running, optimize_result, target_pid, process_killed, &processes, &processes_mutex]
-                                  { 
+                                  {
                                       if (!*optimize_running)
                                       {
                                           *optimize_running = true;
                                           *optimize_result = "";
                                           *target_pid = -1;
                                           *process_killed = false;
-                                          
+
                                           // Get a snapshot of current processes
                                           std::vector<Process> processes_snapshot;
                                           {
                                               std::lock_guard<std::mutex> lock(processes_mutex);
                                               processes_snapshot = processes;
                                           }
-                                          
+
                                           *optimize_future = machine_optimizer->run_async(processes_snapshot);
                                       }
                                   });
-    
-    auto kill_button = Button("Kill Process", 
+
+    auto kill_button = Button("Kill Process",
                               [target_pid, process_killed, kill_success, &processes, &processes_mutex]
                               {
                                   if (*target_pid > 0 && !*process_killed)
@@ -103,11 +103,11 @@ void start_ui(double refresh_rate_seconds)
                               });
 
     auto optimize_container = Container::Vertical({optimize_button, kill_button});
-    
+
     auto optimize_renderer = Renderer(optimize_container, [optimize_button, kill_button, optimize_running, optimize_result, optimize_future, target_pid, process_killed, kill_success]
                                       {
         // Check if the async operation completed
-        if (*optimize_running && optimize_future->valid() && 
+        if (*optimize_running && optimize_future->valid() &&
             optimize_future->wait_for(std::chrono::milliseconds(0)) == std::future_status::ready)
         {
             auto result = optimize_future->get();
@@ -115,13 +115,13 @@ void start_ui(double refresh_rate_seconds)
             *target_pid = result.second;
             *optimize_running = false;
         }
-        
+
         auto elements = vbox({
             text("") | center,
             optimize_button->Render() | center,
             text("") | center,
         });
-        
+
         if (*optimize_running)
         {
             elements = vbox({
@@ -142,7 +142,7 @@ void start_ui(double refresh_rate_seconds)
                     text("Optimization Complete!") | center | bold | color(Color::Green),
                     text("AI Recommended Process to Kill: " + *optimize_result) | center,
                     text("") | center,
-                    text(*kill_success ? "✓ Process killed successfully" : "✗ Failed to kill process") | 
+                    text(*kill_success ? "✓ Process killed successfully" : "✗ Failed to kill process") |
                         center | bold | color(*kill_success ? Color::Green : Color::Red),
                 });
             }
@@ -159,7 +159,7 @@ void start_ui(double refresh_rate_seconds)
                 });
             }
         }
-        
+
         return elements; });
 
     auto tab_container = Container::Tab(
