@@ -45,6 +45,7 @@ add_executable(houston
   src/ui/status_view/status_view.cpp
   src/ui/status_view/cpu_info_view.cpp
   src/ui/status_view/mem_info_view.cpp
+  src/ui/machine_optimizer_view/machine_optimizer_view.cpp
 )
 target_include_directories(houston PRIVATE src)
 
