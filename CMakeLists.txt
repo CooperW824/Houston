@@ -41,9 +41,19 @@ add_executable(houston
   src/ui/process_view/process_detail_view.cpp
   src/ui/status_view/status_view.cpp
   src/ui/status_view/cpu_info_view.cpp
+
+  src/smart_sparker/get_https.cpp
 )
 target_include_directories(houston PRIVATE src)
 
+# Find libcurl
+# Find libcurl
+find_package(CURL REQUIRED)
+if(CURL_FOUND)
+    message(STATUS "Found CURL: ${CURL_LIBRARIES}")
+    target_include_directories(houston PRIVATE ${CURL_INCLUDE_DIRS})
+    target_link_libraries(houston PRIVATE ${CURL_LIBRARIES})
+endif()
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(STATGRAB REQUIRED libstatgrab)
 find_package(Threads REQUIRED)
