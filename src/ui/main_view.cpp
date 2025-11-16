@@ -2,6 +2,7 @@
 #include "process_view/processes_view.hpp"
 #include "status_view/status_view.hpp"
 #include "status_view/cpu_info_view.hpp"
+#include "status_view/mem_info_view.hpp"
 #include <chrono>
 #include <atomic>
 #include <condition_variable>
@@ -30,7 +31,16 @@ void start_ui(double refresh_rate_seconds)
         status_monitor->get_cpu_thread_count(),
         status_monitor->get_cpu_model_public()));
 
-    for (int i = 1; i < hardware_resources->size(); ++i)
+    status_tab_contents.push_back(create_mem_info_view(
+        status_monitor->get_memory_total_mb(),
+        status_monitor->get_memory_used_mb(),
+        status_monitor->get_memory_free_mb(),
+        status_monitor->get_memory_cached_mb(),
+        status_monitor->get_memory_swap_total_mb(),
+        status_monitor->get_memory_swap_used_mb(),
+        status_monitor->get_history_memory_used_mb()));
+
+    for (int i = 2; i < hardware_resources->size(); ++i)
     {
         status_tab_contents.push_back(Renderer([i, hardware_resources]
                                                { return text(hardware_resources->at(i)) | bold; }) |
@@ -42,9 +52,7 @@ void start_ui(double refresh_rate_seconds)
     // Machine Optimize tab
     auto optimize_clicked = std::make_shared<bool>(false);
     auto optimize_button = Button("Optimize resource allocation with artificial intelligence", [optimize_clicked]
-                                  { 
-                                      *optimize_clicked = true;
-                                  });
+                                  { *optimize_clicked = true; });
 
     auto optimize_renderer = Renderer(optimize_button, [optimize_button, optimize_clicked]
                                       {
@@ -105,7 +113,7 @@ void start_ui(double refresh_rate_seconds)
     std::atomic<bool> should_exit(false);
     std::mutex refresh_mutex;
     std::condition_variable refresh_cv;
-    
+
     std::thread refresh_thread([&]()
                                {
         while (!should_exit)
@@ -140,10 +148,10 @@ void start_ui(double refresh_rate_seconds)
 
     screen.Loop(main_view);
 
-    //cleanup sequence
+    // cleanup sequence
     should_exit = true;
     refresh_cv.notify_all(); // Wake up refresh thread immediately
-    
+
     if (refresh_thread.joinable())
     {
         refresh_thread.join();

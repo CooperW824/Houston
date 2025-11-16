@@ -15,7 +15,6 @@
 #include <unordered_map>
 #include <algorithm>
 
-
 // Trims leading and trailing whitespace from a string
 std::string trim(const std::string &str)
 {
@@ -135,9 +134,7 @@ StatusMonitor::StatusMonitor()
         logical_core_utilizations[i] = new double;
     }
 
-    this->compute_cpu_utilization();
-    this->compute_process_and_thread_counts();
-    this->compute_max_cpu_clock_speeds();
+    this->update();
 }
 
 StatusMonitor::~StatusMonitor()
@@ -165,6 +162,7 @@ void StatusMonitor::update()
     this->compute_cpu_utilization();
     this->compute_process_and_thread_counts();
     this->compute_max_cpu_clock_speeds();
+    this->update_memory_info();
 }
 
 std::string StatusMonitor::get_cpu_model()
@@ -543,5 +541,28 @@ void StatusMonitor::compute_max_cpu_clock_speeds()
     {
         this->cpu_logical_core_count = mhz.size();
         this->cpu_max_clock_speed_mhz = *std::max_element(mhz.begin(), mhz.end());
+    }
+}
+
+void StatusMonitor::update_memory_info()
+{
+    struct sysinfo memory_info;
+
+    if (!sysinfo(&memory_info))
+    {
+        this->memory_total_mb = memory_info.totalram / (1000.0 * 1000.0);
+        this->memory_free_mb = memory_info.freeram / (1000.0 * 1000.0);
+        this->memory_cached_mb = memory_info.bufferram / (1000.0 * 1000.0);
+        this->memory_used_mb = (memory_info.totalram - memory_info.freeram - memory_info.bufferram) / (1000.0 * 1000.0);
+
+        this->memory_swap_total_mb = memory_info.totalswap / (1000.0 * 1000.0);
+        this->memory_swap_used_mb = (memory_info.totalswap - memory_info.freeswap) / (1000.0 * 1000.0);
+
+        // Update history
+        this->memory_used_history.push_back(this->memory_used_mb);
+        if (this->memory_used_history.size() > 60) // Keep last 60 entries
+        {
+            this->memory_used_history.erase(this->memory_used_history.begin());
+        }
     }
 }

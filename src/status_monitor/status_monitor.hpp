@@ -65,6 +65,14 @@ private:
     PciIdDatabase pci_id_database;
     bool pci_database_loaded = false;
 
+    std::vector<double> memory_used_history;
+    double memory_total_mb = 0.0;
+    double memory_used_mb = 0.0;
+    double memory_free_mb = 0.0;
+    double memory_cached_mb = 0.0;
+    double memory_swap_total_mb = 0.0;
+    double memory_swap_used_mb = 0.0;
+
     std::string pci_file_location = "./src/assets/pci.ids";
 
     void load_pci_id_database(std::string pci_id_filepath);
@@ -81,6 +89,7 @@ private:
     void compute_cpu_utilization();
     void compute_process_and_thread_counts();
     void compute_max_cpu_clock_speeds();
+    void update_memory_info();
 
 public:
     StatusMonitor(/* args */);
@@ -119,6 +128,35 @@ public:
     {
         return this->get_cpu_model();
     }
+
+    double get_memory_total_mb()
+    {
+        return this->memory_total_mb;
+    };
+    double *get_memory_used_mb()
+    {
+        return &this->memory_used_mb;
+    };
+    double *get_memory_free_mb()
+    {
+        return &this->memory_free_mb;
+    };
+    double *get_memory_cached_mb()
+    {
+        return &this->memory_cached_mb;
+    };
+    double get_memory_swap_total_mb()
+    {
+        return this->memory_swap_total_mb;
+    };
+    double *get_memory_swap_used_mb()
+    {
+        return &this->memory_swap_used_mb;
+    };
+    std::vector<double> *get_history_memory_used_mb()
+    {
+        return &this->memory_used_history;
+    };
 };
 
 #endif /* __STATUS_MONITOR_HPP */
