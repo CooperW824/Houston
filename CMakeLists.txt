@@ -30,6 +30,8 @@ FetchContent_MakeAvailable(ftxui)
 add_executable(houston
   src/main.cpp
   src/status_monitor/status_monitor.cpp
+  src/smart_sparker/get_https.cpp
+  src/smart_sparker/process_sorter.cpp
   src/processes_list/process.cpp
   src/processes_list/processes_list.cpp
   src/processes_list/network_tracker.cpp
@@ -41,8 +43,6 @@ add_executable(houston
   src/ui/process_view/process_detail_view.cpp
   src/ui/status_view/status_view.cpp
   src/ui/status_view/cpu_info_view.cpp
-  src/smart_sparker/get_https.cpp
-  src/smart_sparker/process_sorter.cpp
 )
 target_include_directories(houston PRIVATE src)
 

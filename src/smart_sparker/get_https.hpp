@@ -1,6 +1,9 @@
 #ifndef GET_HTTPS_HPP
 #define GET_HTTPS_HPP
+
+#include "json.hpp"
 #include <string>
-#include <iostream>
-int get_https(const std::string& prompt);
+
+std::string get_https(const nlohmann::json& processList);
+
 #endif

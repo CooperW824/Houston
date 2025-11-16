@@ -4,10 +4,11 @@
 #include "status_view/cpu_info_view.hpp"
 #include <chrono>
 #include <atomic>
+#include <condition_variable>
 
 void start_ui(double refresh_rate_seconds)
 {
-    std::vector<std::string> function_tabs = {"System Status", "Running Processes"};
+    std::vector<std::string> function_tabs = {"System Status", "Running Processes", "Machine Optimize"};
     int selected_function = 0;
     auto function_select = Toggle(&function_tabs, &selected_function);
 
@@ -38,9 +39,37 @@ void start_ui(double refresh_rate_seconds)
 
     auto status_renderer = create_status_view(*hardware_resources, status_tab_contents);
 
+    // Machine Optimize tab
+    auto optimize_clicked = std::make_shared<bool>(false);
+    auto optimize_button = Button("Optimize resource allocation with artificial intelligence", [optimize_clicked]
+                                  { 
+                                      *optimize_clicked = true;
+                                  });
+
+    auto optimize_renderer = Renderer(optimize_button, [optimize_button, optimize_clicked]
+                                      {
+        auto elements = vbox({
+            text("") | center,
+            optimize_button->Render() | center,
+            text("") | center,
+        });
+        
+        if (*optimize_clicked)
+        {
+            elements = vbox({
+                text("") | center,
+                optimize_button->Render() | center,
+                text("") | center,
+                text("Program Optimizing") | center | bold,
+            });
+        }
+        
+        return elements; });
+
     auto tab_container = Container::Tab(
         {status_renderer,
-         processes_renderer},
+         processes_renderer,
+         optimize_renderer},
         &selected_function);
 
     auto main_container_base = Container::Vertical({
@@ -74,28 +103,50 @@ void start_ui(double refresh_rate_seconds)
     auto screen = ScreenInteractive::Fullscreen();
 
     std::atomic<bool> should_exit(false);
+    std::mutex refresh_mutex;
+    std::condition_variable refresh_cv;
+    
     std::thread refresh_thread([&]()
                                {
         while (!should_exit)
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(refresh_rate_seconds * 1000)));
-            if (!should_exit)
+            std::unique_lock<std::mutex> lock(refresh_mutex);
+            if (refresh_cv.wait_for(lock, std::chrono::milliseconds(static_cast<int>(refresh_rate_seconds * 1000)),
+                                   [&]() { return should_exit.load(); }))
             {
-                status_monitor->update();
-                auto new_processes = get_processes_list();
+                break; // Exit if should_exit was set
+            }
+            
+            if (should_exit) break;
+            
+            // Update status monitor
+            status_monitor->update();
+            
+            // Update processes with timeout protection
+            auto new_processes = get_processes_list();
+            {
+                std::unique_lock<std::mutex> proc_lock(processes_mutex, std::try_to_lock);
+                if (proc_lock.owns_lock() && !should_exit)
                 {
-                    std::lock_guard<std::mutex> lock(processes_mutex);
                     processes = new_processes;
                 }
+            }
+            
+            if (!should_exit)
+            {
                 screen.PostEvent(Event::Custom);
             }
         } });
 
     screen.Loop(main_view);
 
+    //cleanup sequence
     should_exit = true;
+    refresh_cv.notify_all(); // Wake up refresh thread immediately
+    
     if (refresh_thread.joinable())
     {
         refresh_thread.join();
     }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }

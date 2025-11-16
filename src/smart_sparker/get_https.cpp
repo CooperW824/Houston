@@ -1,9 +1,8 @@
 #include "get_https.hpp"
 #include "load_env.hpp"
-#include <iostream>
-#include <string>
-#include <curl/curl.h>
 #include "json.hpp"
+#include <iostream>
+#include <curl/curl.h>
 
 using json = nlohmann::json;
 
@@ -13,39 +12,55 @@ static size_t curlWriteCallback(void* contents, size_t size, size_t nmemb, void*
     return size * nmemb;
 }
 
-int get_https(const std::string& prompt) 
+std::string get_https(const json& processList)
 {
-    // Load .env
     env::load_env_file(".env");
 
-    // Get API key
     const char* key = std::getenv("GEMINI_API_KEY");
     if (!key) {
         std::cerr << "GEMINI_API_KEY not set!\n";
-        return 1;
+        return "";
     }
 
-    // Build request JSON
+    const std::string fixedPrompt =
+        "You are a resource optimization AI.\n"
+        "Analyze the following processes based on:\n"
+        "- CPU usage\n"
+        "- Memory usage\n"
+        "- Network usage\n"
+        "- Process name significance\n\n"
+        "Return ONLY the PID (just the number) of the single process that is the best candidate to kill.\n"
+        "No explanation. No extra text. Only return the PID.\n"
+        "Avoid killing critical system processes.";
+
     json payload;
     payload["contents"] = json::array();
+
     json part;
-    part["parts"] = json::array({ { {"text", prompt} } });
+    part["parts"] = json::array({
+        {
+            {"text", fixedPrompt + "\n\nProcesses:\n" + processList.dump()}
+        }
+    });
+
     payload["contents"].push_back(part);
 
-    std::string endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+    std::string endpoint =
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
-    // Initialize curl
     CURL* curl = curl_easy_init();
     if (!curl) {
         std::cerr << "Curl init failed!\n";
-        return 1;
+        return "";
     }
 
     std::string response;
     struct curl_slist* headers = nullptr;
+
     headers = curl_slist_append(headers, "Content-Type: application/json");
+
     std::string keyHeader = "x-goog-api-key: ";
-    keyHeader += key;  // For Gemini, API keys may be passed as Bearer
+    keyHeader += key;
     headers = curl_slist_append(headers, keyHeader.c_str());
 
     std::string body = payload.dump();
@@ -57,25 +72,21 @@ int get_https(const std::string& prompt)
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
 
     CURLcode res = curl_easy_perform(curl);
-    if (res != CURLE_OK) {
-        std::cerr << "Curl error: " << curl_easy_strerror(res) << "\n";
-        curl_slist_free_all(headers);
-        curl_easy_cleanup(curl);
-        return 1;
-    }
-
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
-    // Print the raw JSON response
-    std::cout << "Raw response:\n" << response << "\n";
 
-    // Parse JSON
-    try {
-        json resp_json = json::parse(response);
-        std::cout << "\nParsed response:\n" << resp_json.dump(2) << "\n";
-    } catch (...) {
-        std::cerr << "Could not parse response as JSON.\n";
+    if (res != CURLE_OK) {
+        std::cerr << "Curl error: " << curl_easy_strerror(res) << "\n";
+        return "";
     }
 
-    return 0;
+    try {
+        json resp_json = json::parse(response);
+        std::string pid_to_kill =
+            resp_json["candidates"][0]["content"]["parts"][0]["text"];
+        return pid_to_kill;
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to parse Gemini response: " << e.what() << "\n";
+        return "";
+    }
 }

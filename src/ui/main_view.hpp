@@ -13,4 +13,3 @@ using namespace ftxui;
 void start_ui(double refresh_rate_seconds);
 
 #endif
-
