@@ -24763,7 +24763,6 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
             JSON_THROW(parse_error::create(104, 0, "JSON patch must be an array of objects", &json_patch));
         }
 
-        // iterate and apply the operations
         for (const auto& val : json_patch)
         {
             // wrapper to get a value for an operation
@@ -24901,7 +24900,6 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
         result.patch_inplace(json_patch);
         return result;
     }
-
     /// @brief creates a diff as a JSON patch
     /// @sa https://json.nlohmann.me/api/basic_json/diff/
     JSON_HEDLEY_WARN_UNUSED_RESULT
@@ -25036,12 +25034,6 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
 
         return result;
     }
-    /// @}
-
-    ////////////////////////////////
-    // JSON Merge Patch functions //
-    ////////////////////////////////
-
     /// @name JSON Merge Patch functions
     /// @{
 
@@ -25073,7 +25065,6 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
         }
     }
 
-    /// @}
 };
 
 /// @brief user-defined to_string function for JSON values
@@ -25116,10 +25107,6 @@ JSON_HEDLEY_NON_NULL(1)
 }  // namespace json_literals
 }  // namespace literals
 NLOHMANN_JSON_NAMESPACE_END
-
-///////////////////////
-// nonmember support //
-///////////////////////
 
 namespace std // NOLINT(cert-dcl58-cpp)
 {
@@ -25181,18 +25168,6 @@ inline void swap(nlohmann::NLOHMANN_BASIC_JSON_TPL& j1, nlohmann::NLOHMANN_BASIC
     #endif
 #endif
 
-// #include <nlohmann/detail/macro_unscope.hpp>
-//     __ _____ _____ _____
-//  __|  |   __|     |   | |  JSON for Modern C++
-// |  |  |__   |  |  | | | |  version 3.12.0
-// |_____|_____|_____|_|___|  https://github.com/nlohmann/json
-//
-// SPDX-FileCopyrightText: 2013 - 2025 Niels Lohmann <https://nlohmann.me>
-// SPDX-License-Identifier: MIT
-
-
-
-// restore clang diagnostic settings
 #if defined(__clang__)
     #pragma clang diagnostic pop
 #endif
@@ -25226,17 +25201,6 @@ inline void swap(nlohmann::NLOHMANN_BASIC_JSON_TPL& j1, nlohmann::NLOHMANN_BASIC
     #undef JSON_HAS_STATIC_RTTI
     #undef JSON_USE_LEGACY_DISCARDED_VALUE_COMPARISON
 #endif
-
-// #include <nlohmann/thirdparty/hedley/hedley_undef.hpp>
-//     __ _____ _____ _____
-//  __|  |   __|     |   | |  JSON for Modern C++
-// |  |  |__   |  |  | | | |  version 3.12.0
-// |_____|_____|_____|_|___|  https://github.com/nlohmann/json
-//
-// SPDX-FileCopyrightText: 2013 - 2025 Niels Lohmann <https://nlohmann.me>
-// SPDX-License-Identifier: MIT
-
-
 
 #undef JSON_HEDLEY_ALWAYS_INLINE
 #undef JSON_HEDLEY_ARM_VERSION
@@ -25386,7 +25350,4 @@ inline void swap(nlohmann::NLOHMANN_BASIC_JSON_TPL& j1, nlohmann::NLOHMANN_BASIC
 #undef JSON_HEDLEY_WARN_UNUSED_RESULT
 #undef JSON_HEDLEY_WARN_UNUSED_RESULT_MSG
 #undef JSON_HEDLEY_FALL_THROUGH
-
-
-
 #endif  // INCLUDE_NLOHMANN_JSON_HPP_

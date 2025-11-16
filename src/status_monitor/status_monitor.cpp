@@ -13,6 +13,8 @@
 #include <statgrab.h>
 #include <thread>
 #include <unordered_map>
+#include <algorithm>
+
 
 // Trims leading and trailing whitespace from a string
 std::string trim(const std::string &str)

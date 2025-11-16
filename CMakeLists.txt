@@ -41,8 +41,8 @@ add_executable(houston
   src/ui/process_view/process_detail_view.cpp
   src/ui/status_view/status_view.cpp
   src/ui/status_view/cpu_info_view.cpp
-
   src/smart_sparker/get_https.cpp
+  src/smart_sparker/process_sorter.cpp
 )
 target_include_directories(houston PRIVATE src)
 

@@ -66,11 +66,10 @@ int get_https(const std::string& prompt)
 
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
-
     // Print the raw JSON response
     std::cout << "Raw response:\n" << response << "\n";
 
-    // Parse JSON (if Gemini returns JSON)
+    // Parse JSON
     try {
         json resp_json = json::parse(response);
         std::cout << "\nParsed response:\n" << resp_json.dump(2) << "\n";
