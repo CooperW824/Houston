@@ -123,11 +123,15 @@ StatusMonitor::StatusMonitor()
     this->pci_database_loaded = false;
     this->hardware_resources = std::vector<std::string>{};
     this->determine_hardware_resources();
-    sg_init(0);
 
     int logical_cores = std::thread::hardware_concurrency();
     this->cpu_logical_core_count = logical_cores;
     this->logical_core_utilizations.resize(logical_cores);
+
+    for (int i = 0; i < logical_core_utilizations.size(); i++)
+    {
+        logical_core_utilizations[i] = new double;
+    }
 
     this->compute_cpu_utilization();
     this->compute_process_and_thread_counts();
@@ -150,7 +154,6 @@ StatusMonitor::~StatusMonitor()
     }
 
     network_adapters.clear();
-    sg_shutdown();
 }
 
 void StatusMonitor::update()
@@ -469,21 +472,53 @@ void StatusMonitor::compute_cpu_utilization()
     for (int i = 0; i < this->cpu_logical_core_count; ++i)
     {
         std::string core_label = "cpu" + std::to_string(i);
-        this->logical_core_utilizations[i] = calculate_utilization(cpu_data_1[core_label], cpu_data_2[core_label]);
+        *this->logical_core_utilizations[i] = calculate_utilization(cpu_data_1[core_label], cpu_data_2[core_label]);
     }
 }
 
 void StatusMonitor::compute_process_and_thread_counts()
 {
-    sg_process_count *proc_stats = sg_get_process_count();
-    if (proc_stats)
+    this->process_count = 0;
+    std::string proc_path = "/proc";
+
+    for (const auto &entry : std::filesystem::directory_iterator(proc_path))
     {
-        this->process_count = proc_stats->total;
+        if (entry.is_directory())
+        {
+            std::string dir_name = entry.path().filename().string();
+            // Check if the directory name is a number (PID)
+            if (std::all_of(dir_name.begin(), dir_name.end(), ::isdigit))
+            {
+                // This is a process directory
+                int pid = std::stoi(dir_name);
+
+                // Optionally, read /proc/<PID>/status to check process state
+                std::string status_file_path = proc_path + "/" + dir_name + "/status";
+                std::ifstream status_file(status_file_path);
+                if (status_file.is_open())
+                {
+                    std::string line;
+                    while (std::getline(status_file, line))
+                    {
+                        if (line.rfind("State:", 0) == 0)
+                        { // Check if line starts with "State:"
+                            // Extract state (e.g., "S (sleeping)", "R (running)")
+                            // You can parse this to count only specific states if needed
+                            // For a simple count of "running" processes (not zombies/stopped),
+                            // you can check for 'R' or 'S' (running/sleeping)
+                            // A more robust check would involve parsing the full state string.
+                            this->process_count++;
+                            break; // Move to next process after finding state
+                        }
+                    }
+                    status_file.close();
+                }
+            }
+        }
     }
 
     // TODO: Thread count computation (statgrab does not provide this directly)
     this->thread_count = 0; // Placeholder
-    sg_free_process_count(proc_stats);
 }
 
 void StatusMonitor::compute_max_cpu_clock_speeds()

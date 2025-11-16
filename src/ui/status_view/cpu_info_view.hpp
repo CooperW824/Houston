@@ -6,8 +6,9 @@
 using namespace ftxui;
 
 Component create_cpu_info_view(
-    const std::vector<double> &core_utilizations,
+    const std::vector<double *> &core_utilizations,
     const double *max_clock_speed_mhz,
+    const double *overall_utilization,
     const int logical_core_count,
     const int *process_count,
     const int *thread_count,

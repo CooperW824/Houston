@@ -23,6 +23,7 @@ void start_ui(double refresh_rate_seconds)
     status_tab_contents.push_back(create_cpu_info_view(
         status_monitor->get_logical_core_utilizations(),
         status_monitor->get_cpu_max_clock_speed_mhz(),
+        status_monitor->get_overall_cpu_utilization(),
         status_monitor->get_cpu_logical_core_count(),
         status_monitor->get_cpu_process_count(),
         status_monitor->get_cpu_thread_count(),
@@ -80,6 +81,7 @@ void start_ui(double refresh_rate_seconds)
             std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(refresh_rate_seconds * 1000)));
             if (!should_exit)
             {
+                status_monitor->update();
                 auto new_processes = get_processes_list();
                 {
                     std::lock_guard<std::mutex> lock(processes_mutex);

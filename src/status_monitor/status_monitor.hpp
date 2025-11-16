@@ -60,7 +60,7 @@ private:
     int cpu_logical_core_count = 0;
     int process_count = 0;
     int thread_count = 0;
-    std::vector<double> logical_core_utilizations;
+    std::vector<double *> logical_core_utilizations;
 
     PciIdDatabase pci_id_database;
     bool pci_database_loaded = false;
@@ -95,7 +95,7 @@ public:
     {
         return &this->overall_cpu_utilization_percent;
     }
-    const std::vector<double> &get_logical_core_utilizations()
+    const std::vector<double *> &get_logical_core_utilizations()
     {
         return this->logical_core_utilizations;
     }

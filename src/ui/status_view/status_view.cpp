@@ -18,12 +18,15 @@ Component create_status_view(const std::vector<std::string> &hardware_resources,
     // The Tab component needs a container of all the content for each tab
     auto tab_container = Container::Tab(tab_contents, menu_selected.get());
 
+    auto tab_pane = Renderer(tab_container, [tab_container]
+                             { return tab_container->Render(); });
+
     // 4. The Resizable Split Component
     // This splits the available space horizontally between the menu and the tabs.
     auto resizable_split = ResizableSplit(
                                ResizableSplitOption{
                                    .main = menu_component,
-                                   .back = tab_container,
+                                   .back = tab_pane,
                                    .direction = Direction::Left,
                                    .main_size = split_state.get(),
                                    .separator_func = []
