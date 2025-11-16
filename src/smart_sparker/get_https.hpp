@@ -4,6 +4,6 @@
 #include "json.hpp"
 #include <string>
 
-std::string get_https(const nlohmann::json& processList);
+std::string get_https();
 
 #endif
