@@ -134,7 +134,7 @@ void start_ui(double refresh_rate_seconds)
 
     auto main_view = Renderer(main_container, [&]
                               { return vbox({
-                                           text("Houston - AI Powered System Monitor and Optimizer, MIT LICENSED 2025") | bold | center,
+                                           text("Houston - Machine Learning Powered System Monitor and Optimizer, MIT LICENSED 2025") | bold | center,
                                            separator(),
                                            function_select->Render(),
                                            separator(),
