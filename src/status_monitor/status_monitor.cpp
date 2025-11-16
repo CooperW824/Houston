@@ -10,6 +10,9 @@
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <unordered_set>
+#include <statgrab.h>
+#include <thread>
+#include <unordered_map>
 
 // Trims leading and trailing whitespace from a string
 std::string trim(const std::string &str)
@@ -120,6 +123,15 @@ StatusMonitor::StatusMonitor()
     this->pci_database_loaded = false;
     this->hardware_resources = std::vector<std::string>{};
     this->determine_hardware_resources();
+    sg_init(0);
+
+    int logical_cores = std::thread::hardware_concurrency();
+    this->cpu_logical_core_count = logical_cores;
+    this->logical_core_utilizations.resize(logical_cores);
+
+    this->compute_cpu_utilization();
+    this->compute_process_and_thread_counts();
+    this->compute_max_cpu_clock_speeds();
 }
 
 StatusMonitor::~StatusMonitor()
@@ -138,6 +150,16 @@ StatusMonitor::~StatusMonitor()
     }
 
     network_adapters.clear();
+    sg_shutdown();
+}
+
+void StatusMonitor::update()
+{
+    this->hardware_resources.clear();
+    this->determine_hardware_resources();
+    this->compute_cpu_utilization();
+    this->compute_process_and_thread_counts();
+    this->compute_max_cpu_clock_speeds();
 }
 
 std::string StatusMonitor::get_cpu_model()
@@ -276,6 +298,8 @@ bool StatusMonitor::is_physical_drive(const std::string &device_name)
         return false;
     if (device_name.rfind("zram", 0) == 0)
         return false;
+    if (device_name.rfind("ram", 0) == 0)
+        return false;
     if (device_name.rfind("dm-", 0) == 0)
         return false;
 
@@ -290,7 +314,7 @@ void StatusMonitor::determine_hardware_resources()
 
     if (!sysinfo(&memory_info))
     {
-        this->hardware_resources.push_back("RAM: " + std::to_string((memory_info.totalram - memory_info.freeram) / (1000 * 1000)) + " / " + std::to_string(memory_info.totalram / (1000 * 1000)) + " MB");
+        this->hardware_resources.push_back("RAM: " + std::to_string(memory_info.totalram / (1000 * 1000)) + " MB");
     }
 
     this->hardware_resources.push_back("GPU: " + get_gpu_model());
@@ -327,5 +351,160 @@ void StatusMonitor::determine_hardware_resources()
             continue;
         this->hardware_resources.push_back("Drive " + std::to_string(storage_device_number) + ": " + dev);
         storage_device_number++;
+    }
+}
+
+double calculate_utilization(const CpuTime &prev_times, const CpuTime &current_times)
+{
+    long long prev_total = prev_times.getTotalTime();
+    long long current_total = current_times.getTotalTime();
+
+    long long prev_idle = prev_times.getIdleTime();
+    long long current_idle = current_times.getIdleTime();
+
+    // Calculate the difference in total time and idle time
+    long long total_diff = current_total - prev_total;
+    long long idle_diff = current_idle - prev_idle;
+
+    if (total_diff <= 0)
+    {
+        // Handle case where total time hasn't increased (e.g., if the time interval was too short)
+        return -1.0;
+    }
+
+    // Non-idle time difference is the time the CPU spent working
+    long long work_diff = total_diff - idle_diff;
+
+    // Utilization = (Work Time / Total Time) * 100
+    double utilization = (static_cast<double>(work_diff) / total_diff) * 100.0;
+
+    return utilization;
+}
+
+void StatusMonitor::compute_cpu_utilization()
+{
+    std::unordered_map<std::string, CpuTime> cpu_data_1;
+    std::ifstream file("/proc/stat");
+    std::string line;
+
+    if (!file.is_open())
+    {
+        std::cerr << "Error: Could not open /proc/stat" << std::endl;
+    }
+
+    // Read the file line by line
+    while (std::getline(file, line))
+    {
+        std::stringstream ss(line);
+        std::string cpu_label;
+        ss >> cpu_label;
+
+        // Check if the line starts with "cpu" (total) or "cpuN" (individual core)
+        if (cpu_label.rfind("cpu", 0) == 0)
+        {
+            if (cpu_label.length() > 3 && !isdigit(cpu_label[3]))
+            {
+                // Ignore non-standard cpu labels like cpuidle, cpusets etc if they exist
+                continue;
+            }
+
+            CpuTime times;
+            // Extract Jiffy values
+            ss >> times.user >> times.nice >> times.system >> times.idle >> times.iowait >> times.irq >> times.softirq >> times.steal >> times.guest >> times.guest_nice;
+
+            cpu_data_1[cpu_label] = times;
+        }
+        // Stop reading after all "cpu" lines are processed to save time
+        if (cpu_label.rfind("cpu", 0) != 0 && !cpu_data_1.empty())
+        {
+            break;
+        }
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    std::unordered_map<std::string, CpuTime> cpu_data_2;
+    file.close();
+    file.open("/proc/stat");
+
+    if (!file.is_open())
+    {
+        std::cerr << "Error: Could not open /proc/stat" << std::endl;
+        return;
+    }
+
+    // Read the file line by line again
+    // Read the file line by line
+    while (std::getline(file, line))
+    {
+        std::stringstream ss(line);
+        std::string cpu_label;
+        ss >> cpu_label;
+
+        // Check if the line starts with "cpu" (total) or "cpuN" (individual core)
+        if (cpu_label.rfind("cpu", 0) == 0)
+        {
+            if (cpu_label.length() > 3 && !isdigit(cpu_label[3]))
+            {
+                // Ignore non-standard cpu labels like cpuidle, cpusets etc if they exist
+                continue;
+            }
+
+            CpuTime times;
+            // Extract Jiffy values
+            ss >> times.user >> times.nice >> times.system >> times.idle >> times.iowait >> times.irq >> times.softirq >> times.steal >> times.guest >> times.guest_nice;
+
+            cpu_data_2[cpu_label] = times;
+        }
+        // Stop reading after all "cpu" lines are processed to save time
+        if (cpu_label.rfind("cpu", 0) != 0 && !cpu_data_2.empty())
+        {
+            break;
+        }
+    }
+
+    // Calculate overall CPU utilization
+    this->overall_cpu_utilization_percent = calculate_utilization(cpu_data_1["cpu"], cpu_data_2["cpu"]);
+    // Calculate per-core utilizations
+    for (int i = 0; i < this->cpu_logical_core_count; ++i)
+    {
+        std::string core_label = "cpu" + std::to_string(i);
+        this->logical_core_utilizations[i] = calculate_utilization(cpu_data_1[core_label], cpu_data_2[core_label]);
+    }
+}
+
+void StatusMonitor::compute_process_and_thread_counts()
+{
+    sg_process_count *proc_stats = sg_get_process_count();
+    if (proc_stats)
+    {
+        this->process_count = proc_stats->total;
+    }
+
+    // TODO: Thread count computation (statgrab does not provide this directly)
+    this->thread_count = 0; // Placeholder
+    sg_free_process_count(proc_stats);
+}
+
+void StatusMonitor::compute_max_cpu_clock_speeds()
+{
+    std::ifstream f("/proc/cpuinfo");
+    std::string line;
+    std::vector<double> mhz;
+
+    while (std::getline(f, line))
+    {
+        if (line.find("cpu MHz") != std::string::npos)
+        {
+            double val;
+            if (sscanf(line.c_str(), "cpu MHz\t: %lf", &val) == 1)
+                mhz.push_back(val);
+        }
+    }
+
+    if (!mhz.empty())
+    {
+        this->cpu_logical_core_count = mhz.size();
+        this->cpu_max_clock_speed_mhz = *std::max_element(mhz.begin(), mhz.end());
     }
 }

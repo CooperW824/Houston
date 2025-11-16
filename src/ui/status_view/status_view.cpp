@@ -7,7 +7,7 @@ Component create_status_view(const std::vector<std::string> &hardware_resources,
     auto menu_selected = std::make_shared<int>(0);
 
     // Stores the state of the resizable split (position of the separator)
-    auto split_state = std::make_shared<int>(50); // Initial width for the menu pane (e.g., 50 columns)
+    auto split_state = std::make_shared<int>(45); // Initial width for the menu pane (e.g., 50 columns)
 
     // 2. The Menu Component
     auto menu_component =

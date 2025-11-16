@@ -3,7 +3,7 @@
 
 #include "ftxui/component/component.hpp"
 #include "ftxui/dom/elements.hpp"
-#include "../status_monitor/status_monitor.hpp"
+#include "../../status_monitor/status_monitor.hpp"
 #include <memory>
 
 using namespace ftxui;

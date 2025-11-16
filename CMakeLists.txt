@@ -39,7 +39,8 @@ add_executable(houston
   src/ui/process_view/processes_view_table.cpp
   src/ui/process_view/processes_view_event_handler.cpp
   src/ui/process_view/process_detail_view.cpp
-  src/ui/status_view.cpp
+  src/ui/status_view/status_view.cpp
+  src/ui/status_view/cpu_info_view.cpp
 )
 target_include_directories(houston PRIVATE src)
 
