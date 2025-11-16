@@ -1,4 +1,3 @@
 #! /bin/sh
 
-cmake --build build
-./build/houston
+cmake --build build && ./build/houston
