@@ -36,6 +36,8 @@ add_executable(houston
   src/ui/main_view.cpp
   src/ui/processes_view.cpp
   src/ui/processes_view_inputs.cpp
+  src/ui/processes_view_table.cpp
+  src/ui/processes_view_event_handler.cpp
   src/ui/process_detail_view.cpp
   src/ui/status_view.cpp
 )
@@ -91,6 +93,7 @@ if(BUILD_TESTS)
     src/processes_list/process.cpp
     src/processes_list/network_tracker.cpp
     src/ui/processes_view_inputs.cpp
+    src/ui/processes_view_table.cpp
   )
 
   target_include_directories(houston_tests PRIVATE src)
