@@ -3,7 +3,7 @@
 
 #include "ftxui/component/event.hpp"
 #include "processes_view_state.hpp"
-#include "../processes_list/process.hpp"
+#include "../../processes_list/process.hpp"
 #include <vector>
 #include <mutex>
 

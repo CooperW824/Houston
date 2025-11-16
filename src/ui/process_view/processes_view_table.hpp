@@ -2,7 +2,7 @@
 #define __PROCESSES_VIEW_TABLE_HPP
 
 #include "ftxui/dom/elements.hpp"
-#include "../processes_list/process.hpp"
+#include "../../processes_list/process.hpp"
 #include "processes_view_state.hpp"
 #include <vector>
 #include <mutex>

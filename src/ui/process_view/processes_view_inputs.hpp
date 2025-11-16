@@ -3,7 +3,7 @@
 
 #include "ftxui/component/event.hpp"
 #include "ftxui/screen/box.hpp"
-#include "../processes_list/process.hpp"
+#include "../../processes_list/process.hpp"
 #include <vector>
 #include <memory>
 #include <string>

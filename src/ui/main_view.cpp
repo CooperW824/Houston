@@ -1,5 +1,5 @@
 #include "main_view.hpp"
-#include "processes_view.hpp"
+#include "process_view/processes_view.hpp"
 #include "status_view.hpp"
 #include <chrono>
 #include <atomic>

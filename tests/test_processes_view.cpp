@@ -3,7 +3,7 @@
 #include <vector>
 #include <chrono>
 #include "../src/processes_list/process.hpp"
-#include "../src/ui/processes_view_inputs.hpp"
+#include "../src/ui/process_view/processes_view_inputs.hpp"
 #include "ftxui/component/event.hpp"
 #include "ftxui/screen/box.hpp"
 

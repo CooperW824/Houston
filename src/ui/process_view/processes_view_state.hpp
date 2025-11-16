@@ -6,7 +6,7 @@
 #include <string>
 #include <chrono>
 #include "ftxui/screen/box.hpp"
-#include "../processes_list/process.hpp"
+#include "../../processes_list/process.hpp"
 
 using namespace ftxui;
 
@@ -33,15 +33,15 @@ struct ViewState {
     std::shared_ptr<int> hover_index;
     std::shared_ptr<int> hover_sigterm;
     std::shared_ptr<int> hover_sigkill;
-    
+
     // Search state
     std::shared_ptr<bool> search_mode;
     std::shared_ptr<std::string> search_phrase;
-    
+
     // Sort state
     std::shared_ptr<SortColumn> sort_column;
     std::shared_ptr<bool> sort_ascending;
-    
+
     // Detail view state
     std::shared_ptr<bool> show_detail_view;
     std::shared_ptr<pid_t> detail_process_pid;
@@ -49,14 +49,14 @@ struct ViewState {
     std::shared_ptr<std::vector<float>> memory_history;
     std::shared_ptr<std::vector<float>> network_history;
     std::shared_ptr<std::chrono::steady_clock::time_point> last_sample_time;
-    
+
     // Click tracking for double-click detection
     std::shared_ptr<std::chrono::steady_clock::time_point> last_click_time;
     std::shared_ptr<int> last_clicked_index;
-    
+
     // Display tracking
     std::shared_ptr<std::vector<pid_t>> displayed_pids;
-    
+
     // Bounding boxes for mouse interaction
     std::shared_ptr<std::vector<Box>> boxes;
     std::shared_ptr<std::vector<Box>> sigterm_boxes;
