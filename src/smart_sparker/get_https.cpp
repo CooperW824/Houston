@@ -1,5 +1,6 @@
 #include "get_https.hpp"
 #include "load_env.hpp"
+#include "process_sorter.hpp"
 #include "json.hpp"
 #include <iostream>
 #include <curl/curl.h>
@@ -12,13 +13,20 @@ static size_t curlWriteCallback(void* contents, size_t size, size_t nmemb, void*
     return size * nmemb;
 }
 
-std::string get_https(const json& processList)
+std::string get_https()
 {
     env::load_env_file(".env");
 
     const char* key = std::getenv("GEMINI_API_KEY");
     if (!key) {
         std::cerr << "GEMINI_API_KEY not set!\n";
+        return "";
+    }
+
+    //sorter
+    json processList = get_top_processes_json();
+    if (processList["processes"].empty()) {
+        std::cerr << "No processes found!\n";
         return "";
     }
 
@@ -33,6 +41,7 @@ std::string get_https(const json& processList)
         "No explanation. No extra text. Only return the PID.\n"
         "Avoid killing critical system processes.";
 
+    //build payload
     json payload;
     payload["contents"] = json::array();
 

@@ -2,10 +2,12 @@
 #include "process_view/processes_view.hpp"
 #include "status_view/status_view.hpp"
 #include "status_view/cpu_info_view.hpp"
+#include "../smart_sparker/machine_opt/machine_optimizer.hpp"
 #include "status_view/mem_info_view.hpp"
 #include <chrono>
 #include <atomic>
 #include <condition_variable>
+#include <future>
 
 void start_ui(double refresh_rate_seconds)
 {
@@ -50,28 +52,58 @@ void start_ui(double refresh_rate_seconds)
     auto status_renderer = create_status_view(*hardware_resources, status_tab_contents);
 
     // Machine Optimize tab
-    auto optimize_clicked = std::make_shared<bool>(false);
-    auto optimize_button = Button("Optimize resource allocation with artificial intelligence", [optimize_clicked]
-                                  { *optimize_clicked = true; });
+    auto machine_optimizer = std::make_shared<MachineOptimizer>();
+    auto optimize_future = std::make_shared<std::future<std::string>>();
+    auto optimize_running = std::make_shared<bool>(false);
+    auto optimize_result = std::make_shared<std::string>("");
 
-    auto optimize_renderer = Renderer(optimize_button, [optimize_button, optimize_clicked]
+    auto optimize_button = Button("Optimize resource allocation with artificial intelligence",
+                                  [machine_optimizer, optimize_future, optimize_running, optimize_result]
+                                  {
+                                      if (!*optimize_running)
                                       {
+                                          *optimize_running = true;
+                                          *optimize_result = "";
+                                          *optimize_future = machine_optimizer->run_async();
+                                      }
+                                  });
+
+    auto optimize_renderer = Renderer(optimize_button, [optimize_button, optimize_running, optimize_result, optimize_future]
+                                      {
+        // Check if the async operation completed
+        if (*optimize_running && optimize_future->valid() &&
+            optimize_future->wait_for(std::chrono::milliseconds(0)) == std::future_status::ready)
+        {
+            *optimize_result = optimize_future->get();
+            *optimize_running = false;
+        }
+
         auto elements = vbox({
             text("") | center,
             optimize_button->Render() | center,
             text("") | center,
         });
-        
-        if (*optimize_clicked)
+
+        if (*optimize_running)
         {
             elements = vbox({
                 text("") | center,
                 optimize_button->Render() | center,
                 text("") | center,
-                text("Program Optimizing") | center | bold,
+                text("AI Optimization Running...") | center | bold | color(Color::Yellow),
             });
         }
-        
+        else if (!optimize_result->empty())
+        {
+            elements = vbox({
+                text("") | center,
+                optimize_button->Render() | center,
+                text("") | center,
+                text("Optimization Complete!") | center | bold | color(Color::Green),
+                text("AI Recommended Process to Kill: PID " + *optimize_result) | center,
+            });
+        }
+
         return elements; });
 
     auto tab_container = Container::Tab(
@@ -124,12 +156,12 @@ void start_ui(double refresh_rate_seconds)
             {
                 break; // Exit if should_exit was set
             }
-            
+
             if (should_exit) break;
-            
+
             // Update status monitor
             status_monitor->update();
-            
+
             // Update processes with timeout protection
             auto new_processes = get_processes_list();
             {
@@ -139,7 +171,7 @@ void start_ui(double refresh_rate_seconds)
                     processes = new_processes;
                 }
             }
-            
+
             if (!should_exit)
             {
                 screen.PostEvent(Event::Custom);

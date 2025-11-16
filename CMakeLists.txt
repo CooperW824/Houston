@@ -32,6 +32,7 @@ add_executable(houston
   src/status_monitor/status_monitor.cpp
   src/smart_sparker/get_https.cpp
   src/smart_sparker/process_sorter.cpp
+  src/smart_sparker/machine_opt/machine_optimizer.cpp
   src/processes_list/process.cpp
   src/processes_list/processes_list.cpp
   src/processes_list/network_tracker.cpp
